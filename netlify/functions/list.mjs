@@ -36,6 +36,10 @@ export default async (req) => {
       return json({ error: "bad_shape" }, 400);
     }
     data.savedAt = new Date().toISOString();
+    // 음성 등으로 서버에 바로 들어온 항목(inbox)은 앱이 처리했다고 알려 준 것(inboxDone)만 지움
+    const prev = await store.get(blobKey, { type: "json" });
+    const done = new Set(Array.isArray(data.inboxDone) ? data.inboxDone : []);
+    data.inbox = ((prev && Array.isArray(prev.inbox)) ? prev.inbox : []).filter(e => e && !done.has(e.id));
     await store.setJSON(blobKey, data);
     return json({ ok: true, updatedAt: data.updatedAt || null });
   }
