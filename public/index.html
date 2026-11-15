@@ -109,6 +109,12 @@ h1 { font-family: var(--font-display); font-weight: 400; font-size: 30px; margin
 .fchip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .fchip[aria-pressed="true"] .n { color: inherit; opacity: .8; }
 .fchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.due { font-size: 12px; font-weight: 500; padding: 0 7px; border-radius: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; margin-left: auto; }
+.due.none { color: var(--muted); }
+.due.later { color: var(--muted); border: 1px solid var(--line); }
+.due.soon { color: var(--accent); background: var(--accent-soft); }
+.due.today { color: var(--accent-ink); background: var(--accent); }
+.due.over { color: var(--surface); background: var(--danger); }
 .store { font-size: 12px; font-weight: 500; color: var(--muted); border: 1px solid var(--line); padding: 0 6px; border-radius: 6px; white-space: nowrap; }
 li.done .store { color: var(--done); }
 .chip {
@@ -264,10 +270,11 @@ const LIST_TYPES = {
   todo: {
     enabled: true,
     label: "할일",
-    placeholder: "할 일 입력",
-    hint: "",
+    placeholder: "할 일 입력 (예: 11/17 차량 세차)",
+    hint: "앞에 날짜를 적으면 마감일이 돼요: 오늘, 내일, 모레, 11/17, 11월 17일",
     parseQty: false,
     parseStore: false,
+    parseDue: true,
     openTitle: "할 일",
     doneTitle: "완료",
     clearLabel: "완료 항목 지우기",
@@ -281,8 +288,9 @@ const LIST_TYPES = {
 /* ===== 앱 버전 =====
    앱을 고칠 때마다 APP_VERSION 을 올리고 CHANGELOG 맨 위에 한 줄 추가합니다.
    앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.7.0";
 const CHANGELOG = [
+  { v: "1.7.0", date: "2026-11-16", notes: ["할일 마감일: \"오늘 트럭 라이트\", \"11/17 차량 세차\"처럼 앞에 날짜를 적으면 마감일로 인식", "할일은 마감 가까운 순으로 정렬, 마감 지남·오늘·마감없음 표시", "음성 추가도 같은 규칙 적용, 끝의 \"추가\"는 빼고 저장", "데이터 저장 형식 3번: 할일에 마감일(due) 추가 (기존 데이터 자동 변환)"] },
   { v: "1.6.0", date: "2026-11-16", notes: ["앱을 열지 않고 항목을 넣는 서버 주소(/api/add) 추가: 음성 비서·단축어에서 보낸 항목이 다음에 앱을 열 때 목록에 들어옴"] },
   { v: "1.5.0", date: "2026-11-16", notes: ["버전 표시를 누르면 작동 원리와 버전 기록이 팝업으로 열림", "JSON 내보내기·가져오기 화면 제거", "Netlify 서버 저장소(Netlify Blobs) 지원: 재배포해도 목록 유지, 연결 링크로 다른 기기와 공유"] },
   { v: "1.4.0", date: "2026-11-16", notes: ["맨 앞에 구입처를 적으면 인식 (다이소 우유 2개, @동네마트 두부)", "구입처별 필터와 항목 옆 구입처 표시", "데이터 저장 형식 2번: 항목에 구입처, 기억한 구입처 목록 추가 (기존 데이터 자동 변환)"] },
@@ -304,7 +312,7 @@ const ICON_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-l
    저장 위치: claude.ai 계정 저장소(기기 간 동기화) + 이 기기 localStorage.
    형식을 바꿀 때는 SCHEMA_VERSION 을 올리고 MIGRATIONS 에 변환 함수를 추가하세요.
    모르는 필드와 목록 유형은 지우지 않고 그대로 보존합니다. */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const MIGRATIONS = {
   // 0 → 1: version 필드가 없던 초기 데이터
   0: s => ({ ...s, version: 1 }),
@@ -315,6 +323,14 @@ const MIGRATIONS = {
       lists[k] = { ...l, items: (l.items || []).map(i => ({ store: "", ...i })) };
     }
     return { ...s, lists, stores: Array.isArray(s.stores) ? s.stores : [], version: 2 };
+  },
+  // 2 → 3: 항목에 due(마감일, "YYYY-MM-DD" 또는 "") 추가
+  2: s => {
+    const lists = {};
+    for (const [k, l] of Object.entries(s.lists || {})) {
+      lists[k] = { ...l, items: (l.items || []).map(i => ({ due: "", ...i })) };
+    }
+    return { ...s, lists, version: 3 };
   },
 };
 function migrate(s) {
@@ -400,10 +416,58 @@ function knownStores() {
   for (const x of [...(state.stores || []), ...DEFAULT_STORES]) if (!seen.has(x.toLowerCase())) seen.set(x.toLowerCase(), x);
   return seen;
 }
+/* ===== 마감일 ===== */
+const pad2 = n => String(n).padStart(2, "0");
+const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+function todayStart() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+/* 맨 앞의 날짜 표현을 떼어 냄: 오늘/내일/모레/글피, 11/17, 11.17, 11-17, 11월 17일, 2026-11-17 */
+function takeDue(t) {
+  const today = todayStart();
+  const rel = { "오늘": 0, "내일": 1, "모레": 2, "글피": 3 };
+  let m = t.match(/^(오늘|내일|모레|글피)(?:까지)?\s+(.+)$/);
+  if (m) return { due: ymd(addDays(today, rel[m[1]])), rest: m[2] };
+  m = t.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})(?:까지)?\s+(.+)$/);
+  if (m) { const d = new Date(+m[1], +m[2] - 1, +m[3]); if (d.getMonth() === +m[2] - 1) return { due: ymd(d), rest: m[4] }; }
+  m = t.match(/^(\d{1,2})\s*(?:[/.\-]|월\s*)(\d{1,2})일?(?:까지)?\s+(.+)$/);
+  if (m) {
+    const mo = +m[1], da = +m[2];
+    if (mo >= 1 && mo <= 12 && da >= 1 && da <= 31) {
+      let d = new Date(today.getFullYear(), mo - 1, da);
+      if (d.getMonth() !== mo - 1) return { due: "", rest: t };
+      if (d < addDays(today, -60)) d = new Date(today.getFullYear() + 1, mo - 1, da); // 두 달 넘게 지난 날짜면 내년
+      return { due: ymd(d), rest: m[3] };
+    }
+  }
+  return { due: "", rest: t };
+}
+function dueInfo(due) {
+  if (!due) return { label: "마감없음", cls: "none" };
+  const [y, mo, da] = due.split("-").map(Number);
+  const d = new Date(y, mo - 1, da); const diff = Math.round((d - todayStart()) / 86400000);
+  const wd = "일월화수목금토"[d.getDay()];
+  const md = `${mo}/${da}(${wd})`;
+  if (diff < 0) return { label: `지남 ${md}`, cls: "over" };
+  if (diff === 0) return { label: "오늘", cls: "today" };
+  if (diff === 1) return { label: "내일", cls: "soon" };
+  return { label: md, cls: diff <= 3 ? "soon" : "later" };
+}
+function dueLabelForEdit(due) {
+  if (!due) return "";
+  const [, mo, da] = due.split("-").map(Number);
+  const diff = Math.round((new Date(due + "T00:00") - todayStart()) / 86400000);
+  return diff === 0 ? "오늘" : diff === 1 ? "내일" : `${mo}/${da}`;
+}
+function sortOpen(items, type) {
+  if (!LIST_TYPES[type].parseDue) return items;
+  return [...items].sort((a, b) => (a.due || "9999") < (b.due || "9999") ? -1 : (a.due || "9999") > (b.due || "9999") ? 1 : 0);
+}
+
 function parseEntry(raw, type) {
   let t = raw.trim().replace(/\s+/g, " ");
   const cfg = LIST_TYPES[type];
-  let store = "";
+  let store = "", due = "";
+  if (cfg.parseDue) { const r = takeDue(t); due = r.due; t = r.rest.trim(); }
   if (cfg.parseStore) {
     const ex = t.match(/^@(\S+)\s+(.+)$/) || t.match(/^([^\s:：]{1,15})\s*[:：]\s*(.+)$/);
     if (ex) { store = ex[1]; t = ex[2].trim(); }
@@ -415,10 +479,10 @@ function parseEntry(raw, type) {
       }
     }
   }
-  if (!cfg.parseQty) return { store, text: t, qty: "" };
+  if (!cfg.parseQty) return { store, due, text: t, qty: "" };
   const m = t.match(/^(.+?)\s+(\d+(?:\.\d+)?\s*[^\s\d]{0,3}|[x×]\s*\d+)$/i);
-  if (m && m[1].trim()) return { store, text: m[1].trim(), qty: m[2].replace(/\s+/g, "") };
-  return { store, text: t, qty: "" };
+  if (m && m[1].trim()) return { store, due, text: m[1].trim(), qty: m[2].replace(/\s+/g, "") };
+  return { store, due, text: t, qty: "" };
 }
 function rememberStore(store) {
   if (!store) return;
@@ -427,7 +491,7 @@ function rememberStore(store) {
 /* 최근 항목·수정칸에 쓰는 표기: "다이소 우유" (+ 수량) */
 function entryLabel(it, withQty) {
   const known = it.store && knownStores().get(it.store.toLowerCase());
-  const prefix = it.store ? (known ? it.store + " " : "@" + it.store + " ") : "";
+  const prefix = (it.due ? dueLabelForEdit(it.due) + " " : "") + (it.store ? (known ? it.store + " " : "@" + it.store + " ") : "");
   return prefix + it.text + (withQty && it.qty ? " " + it.qty : "");
 }
 
@@ -440,15 +504,15 @@ function commit() {
   saveLocal(); render(); queueRemote();
 }
 function addItem(raw, type = targetType()) {
-  let { store, text, qty } = parseEntry(raw, type);
+  let { store, due, text, qty } = parseEntry(raw, type);
   if (!text) return;
   // 구입처 필터를 걸어 둔 상태면 그 가게로 추가
   if (!store && LIST_TYPES[type].parseStore && storeFilter && storeFilter !== NO_STORE) store = storeFilter;
   rememberStore(store);
   const l = list(type);
   const existing = l.items.find(i => i.text === text && (i.store || "") === store && !i.done);
-  if (existing) { if (qty) existing.qty = qty; }
-  else l.items.unshift({ id: uid(), store, text, qty, done: false, createdAt: Date.now() });
+  if (existing) { if (qty) existing.qty = qty; if (due) existing.due = due; }
+  else l.items.unshift({ id: uid(), store, due, text, qty, done: false, createdAt: Date.now() });
   const label = entryLabel({ store, text });
   l.recent = l.recent.filter(r => r !== label && r !== text);
   commit();
@@ -486,10 +550,12 @@ function undo() {
 }
 function editItem(id, raw, type) {
   const it = list(type).items.find(i => i.id === id); if (!it) return;
-  const { store, text, qty } = parseEntry(raw, type);
+  const { store, due, text, qty } = parseEntry(raw, type);
   if (!text) { removeItem(id, type); return; }
   rememberStore(store);
-  it.store = store; it.text = text; it.qty = qty; commit();
+  it.store = store; it.text = text; it.qty = qty;
+  if (LIST_TYPES[type].parseDue) it.due = due;
+  commit();
 }
 
 /* ===== 화면 ===== */
@@ -548,7 +614,7 @@ function render() {
     return;
   }
   const shown = filtered(l.items, tType);
-  const open = shown.filter(i => !i.done);
+  const open = sortOpen(shown.filter(i => !i.done), tType);
   const done = sortDone(shown);
 
   if (l.items.length && !shown.length) {
@@ -612,7 +678,7 @@ function groupEl(k) {
   const c = document.createElement("span"); c.className = "count"; c.textContent = `남은 ${openCount(k)}`;
   head.append(h, c); g.appendChild(head);
   const shown = filtered(items, k);
-  const open = shown.filter(i => !i.done); const done = sortDone(shown);
+  const open = sortOpen(shown.filter(i => !i.done), k); const done = sortDone(shown);
   if (!open.length && !done.length) {
     const sec = document.createElement("section");
     const e = document.createElement("div"); e.className = "empty";
@@ -663,6 +729,11 @@ function itemEl(it, type) {
     if (it.store) { const st = document.createElement("span"); st.className = "store"; st.textContent = it.store; body.appendChild(st); }
     const t = document.createElement("span"); t.className = "text"; t.textContent = it.text; body.appendChild(t);
     if (it.qty) { const q = document.createElement("span"); q.className = "qty"; q.textContent = it.qty; body.appendChild(q); }
+    if (LIST_TYPES[type].parseDue) {
+      const di = dueInfo(it.due);
+      const dd = document.createElement("span"); dd.className = "due " + (it.done ? "none" : di.cls); dd.textContent = di.label;
+      body.appendChild(dd);
+    }
     body.onclick = () => { editing = it.id; render(); };
     li.appendChild(body);
   }
@@ -790,7 +861,9 @@ async function initNetlify() {
     if (document.hidden || writing || dirty || editing) return;
     try {
       const d = await fetchRemote();
-      if (d && (d.updatedAt || 0) > lastRemoteAt) { lastRemoteAt = d.updatedAt || 0; applyRemote(d); }
+      // 기기·서버 시계가 달라도 놓치지 않게: 시각이 "다르면" 받아옴
+      const newInbox = d && (d.inbox || []).some(e => e && !(state.inboxDone || []).includes(e.id));
+      if (d && ((d.updatedAt || 0) !== lastRemoteAt || newInbox)) { lastRemoteAt = d.updatedAt || 0; applyRemote(d); }
       setSync("synced", "동기화됨");
     } catch (e) { setSync("local", "이 기기에 저장 (서버 연결 안 됨)"); }
   };
@@ -834,7 +907,8 @@ function processInbox() {
   const todo = (state.inbox || []).filter(e => e && e.id && !done.has(e.id));
   if (!todo.length) return;
   state.inboxDone = [...done, ...todo.map(e => e.id)].slice(-200);
-  for (const e of todo) addItem(String(e.text || ""), LIST_TYPES[e.list] ? e.list : "shopping");
+  // 음성 끝에 붙는 "추가", "추가해 줘" 등은 빼고 저장
+  for (const e of todo) addItem(String(e.text || "").replace(/^할\s*일\s*(?:에|:)?\s+/, "").replace(/\s*(?:을|를)?\s*추가\s*(?:해\s*줘|해\s*주세요|해|하기)?[.!]?$/, ""), LIST_TYPES[e.list] ? e.list : "shopping");
   lastRemoved = null; showToast(`음성으로 ${todo.length}개 추가됨`);
 }
 
