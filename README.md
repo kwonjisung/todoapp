@@ -44,7 +44,7 @@ GET  /api/add?k=<열쇠>&text=다이소 우유 2개&list=shopping
 POST /api/add?k=<열쇠>   {"text":"대파, 계란 1판", "list":"shopping"}   (list: shopping | todo)
 ```
 
-쉼표나 " 그리고 "로 여러 개를 한 번에 넣을 수 있습니다. 서버는 원문을 `inbox`에 넣기만 하고, 구입처·수량 해석은 앱이 다음에 열릴 때(또는 20초 안에) 앱 규칙으로 처리한 뒤 `inboxDone`으로 알려 줍니다.
+안드로이드 음성 설정은 [docs/voice-macrodroid.md](docs/voice-macrodroid.md)를 보세요. 쉼표나 " 그리고 "로 여러 개를 한 번에 넣을 수 있습니다. 서버는 원문을 `inbox`에 넣기만 하고, 구입처·수량 해석은 앱이 다음에 열릴 때(또는 20초 안에) 앱 규칙으로 처리한 뒤 `inboxDone`으로 알려 줍니다.
 
 ## 버전 관리
 
