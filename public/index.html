@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>장바구니 메모</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow column, sticky header with list tabs, add bar on top, "담을 것" then "담은 것" below */
+:root {
+  --bg: #f3f6f2;
+  --surface: #ffffff;
+  --fg: #1d2a22;
+  --muted: #66766b;
+  --line: #dce4dd;
+  --accent: #2f7a4a;
+  --accent-ink: #ffffff;
+  --accent-soft: #e1efe5;
+  --done: #9aa79e;
+  --danger: #b4452f;
+  --font-display: "Do Hyeon", "Noto Sans KR", system-ui, sans-serif;
+  --font-body: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121814; --surface: #1a221d; --fg: #e4ece6; --muted: #93a398; --line: #2b362f;
+    --accent: #5cb87d; --accent-ink: #0d1a12; --accent-soft: #213428; --done: #5f6d64; --danger: #e07a62;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121814; --surface: #1a221d; --fg: #e4ece6; --muted: #93a398; --line: #2b362f;
+  --accent: #5cb87d; --accent-ink: #0d1a12; --accent-soft: #213428; --done: #5f6d64; --danger: #e07a62;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap {
+  max-width: 560px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+header {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg); padding-block: 14px 10px;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px;
+}
+.titlebar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 30px; margin: 0; letter-spacing: 0.5px; }
+.sync { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--done); }
+.sync[data-state="synced"]::before { background: var(--accent); }
+.sync[data-state="saving"]::before { background: #d39b2a; }
+
+.tabs { display: flex; gap: 6px; }
+.tab {
+  font: inherit; font-size: 15px; font-weight: 500; border: 1px solid var(--line); background: var(--surface);
+  color: var(--muted); padding: 6px 14px; border-radius: 999px; cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+.add { display: flex; gap: 8px; }
+.add input {
+  flex: 1; min-width: 0; font: inherit; font-size: 17px; padding: 12px 14px;
+  border: 1.5px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--fg);
+}
+.add input:focus, .add select:focus { outline: none; border-color: var(--accent); }
+.add select {
+  flex: none; font: inherit; font-size: 15px; font-weight: 500; padding: 0 8px; min-height: 48px;
+  border: 1.5px solid var(--line); border-radius: var(--radius); background: var(--accent-soft); color: var(--fg);
+}
+.group + .group { margin-top: 26px; }
+.grouphead { display: flex; align-items: baseline; gap: 8px; margin: 0 2px; }
+.grouphead h2 { font-family: var(--font-display); font-weight: 400; font-size: 22px; margin: 0; }
+.grouphead .count { color: var(--muted); font-size: 14px; }
+.group section { margin-top: 8px; }
+.group .empty { padding: 14px 12px; font-size: 14px; }
+.btn {
+  font: inherit; font-weight: 700; border: 0; border-radius: var(--radius); cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); padding: 0 18px; min-height: 48px;
+}
+.btn:focus-visible, .tab:focus-visible, .chip:focus-visible, .check:focus-visible, .icon:focus-visible, .link:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.filters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.filters::-webkit-scrollbar { display: none; }
+.filters .label { flex: none; font-size: 12.5px; color: var(--muted); align-self: center; margin-right: 2px; }
+.fchip {
+  flex: none; font: inherit; font-size: 13.5px; font-weight: 500; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  padding: 3px 11px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+}
+.fchip .n { color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 3px; }
+.fchip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.fchip[aria-pressed="true"] .n { color: inherit; opacity: .8; }
+.fchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.store { font-size: 12px; font-weight: 500; color: var(--muted); border: 1px solid var(--line); padding: 0 6px; border-radius: 6px; white-space: nowrap; }
+li.done .store { color: var(--done); }
+.chip {
+  font: inherit; font-size: 13.5px; border: 1px dashed var(--accent); color: var(--accent); background: transparent;
+  padding: 3px 10px; border-radius: 999px; cursor: pointer;
+}
+
+section { margin-top: 14px; }
+.sechead { display: flex; justify-content: space-between; align-items: baseline; margin: 0 2px 6px; }
+.sechead h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; color: var(--muted); margin: 0; }
+.count { font-variant-numeric: tabular-nums; }
+.link { font: inherit; font-size: 13px; color: var(--danger); background: none; border: 0; cursor: pointer; padding: 2px 4px; }
+
+ul.items { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+ul.items:empty { display: none; }
+li.item { display: flex; align-items: center; gap: 10px; padding: 10px 8px 10px 12px; border-top: 1px solid var(--line); min-height: 54px; }
+li.item:first-child { border-top: 0; }
+.check {
+  flex: none; width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--accent);
+  background: transparent; cursor: pointer; display: grid; place-items: center; padding: 0;
+}
+.check svg { width: 16px; height: 16px; stroke: var(--accent-ink); opacity: 0; }
+li.done .check { background: var(--accent); }
+li.done .check svg { opacity: 1; }
+.body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; cursor: text; }
+.text { overflow-wrap: anywhere; }
+.qty { font-size: 13px; color: var(--accent); background: var(--accent-soft); padding: 0 8px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+li.done .text { color: var(--done); text-decoration: line-through; }
+li.done .qty { color: var(--done); background: transparent; }
+.edit { flex: 1; min-width: 0; font: inherit; padding: 6px 8px; border: 1.5px solid var(--accent); border-radius: 8px; background: var(--surface); color: var(--fg); }
+.icon { flex: none; width: 36px; height: 36px; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 8px; display: grid; place-items: center; }
+.icon svg { width: 18px; height: 18px; stroke: currentColor; }
+
+.ver {
+  font: inherit; font-size: 12.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
+  border: 0; padding: 2px 9px; border-radius: 999px; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.ver:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.right { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.modal {
+  position: fixed; inset: 0; z-index: 30; background: rgb(10 20 14 / .45);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
+}
+.sheet {
+  background: var(--bg); color: var(--fg); width: 100%; max-width: 560px; max-height: 88%;
+  border-radius: 18px 18px 0 0; display: flex; flex-direction: column; overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (min-width: 640px) { .modal { align-items: center; } .sheet { border-radius: 18px; max-height: 80%; } }
+.sheethead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 10px 8px 18px; border-bottom: 1px solid var(--line); }
+.sheethead h2 { font-family: var(--font-display); font-weight: 400; font-size: 22px; margin: 0; }
+.sheethead h2 span { font-family: var(--font-body); font-size: 14px; color: var(--accent); font-weight: 700; margin-left: 4px; }
+.sheetbody { overflow-y: auto; padding: 14px 18px 22px; display: grid; gap: 20px; }
+.prose { font-size: 14.5px; word-break: keep-all; display: grid; gap: 6px; }
+.prose h3 { font-size: 13px; letter-spacing: .06em; color: var(--muted); margin: 0; }
+.prose p, .prose ul { margin: 0; }
+.prose ul { padding-left: 18px; display: grid; gap: 5px; }
+.keyrow { display: flex; gap: 6px; }
+.keyrow input { flex: 1; min-width: 0; font: 13px ui-monospace, monospace; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); }
+.btn.small { min-height: 36px; padding: 0 14px; font-size: 14px; }
+.changelog { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.changelog .head { display: flex; gap: 8px; align-items: baseline; }
+.changelog .num { font-weight: 700; font-variant-numeric: tabular-nums; }
+.changelog .date { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.changelog ul { margin: 2px 0 0; padding-left: 18px; font-size: 14px; }
+.empty { text-align: center; color: var(--muted); padding: 28px 12px; border: 1.5px dashed var(--line); border-radius: var(--radius); font-size: 14.5px; }
+.empty strong { display: block; font-family: var(--font-display); font-weight: 400; font-size: 20px; color: var(--fg); margin-bottom: 4px; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  background: var(--fg); color: var(--bg); border-radius: 999px; padding: 8px 8px 8px 16px;
+  display: flex; align-items: center; gap: 10px; font-size: 14px; max-width: calc(100% - 32px); z-index: 20;
+}
+.toast button { font: inherit; font-weight: 700; color: var(--accent); background: var(--bg); border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+@media (prefers-reduced-motion: no-preference) { li.item { transition: background .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="titlebar">
+      <h1 id="title">장바구니</h1>
+      <span class="right"><span class="sync" id="sync" data-state="local">이 기기에 저장</span><button class="ver" id="verBtn" type="button" aria-haspopup="dialog"></button></span>
+    </div>
+    <nav class="tabs" id="tabs" role="tablist" hidden></nav>
+    <div class="add" id="addForm">
+      <select id="addTarget" aria-label="추가할 목록" hidden></select>
+      <input id="addInput" type="text" enterkeyhint="done" autocomplete="off" aria-label="항목 추가">
+      <button class="btn" id="addBtn" type="button">추가</button>
+    </div>
+    <p class="hint" id="hint"></p>
+    <div class="chips" id="recent" aria-label="최근 항목"></div>
+    <div class="filters" id="storeFilter" role="group" aria-label="구입처 필터" hidden></div>
+  </header>
+
+  <p class="hint" id="sampleNote" hidden>지금 보이는 항목은 예시예요. <button class="link" id="clearSample" type="button">예시 지우고 시작</button></p>
+  <main id="main"></main>
+</div>
+<div class="modal" id="infoModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+    <div class="sheethead">
+      <h2 id="infoTitle">장바구니 메모 <span id="infoVer"></span></h2>
+      <button class="icon" id="infoClose" type="button" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="sheetbody">
+      <section class="prose" id="connectBox" hidden>
+        <h3>다른 기기 연결</h3>
+        <p>휴대폰과 PC에서 같은 목록을 보려면, 다른 기기에서 아래 연결 링크를 한 번 열어 주세요. 이 링크가 열쇠 역할을 하니 다른 사람에게는 보내지 마세요.</p>
+        <div class="keyrow"><input id="connectLink" type="text" readonly aria-label="연결 링크"><button class="btn small" id="copyLink" type="button">복사</button></div>
+        <p class="hint" id="copyStatus" aria-live="polite"></p>
+      </section>
+      <section class="prose">
+        <h3>작동 원리</h3>
+        <p>이 앱은 화면과 기능을 담은 <b>앱 코드</b>와, 내가 적은 목록을 담은 <b>데이터</b>(JSON)로 나뉘어 있어요. 앱을 업데이트하면 앱 코드만 바뀌고 데이터는 그대로 남아요.</p>
+        <ul>
+          <li><b>저장 위치</b>: <span id="storeWhere">이 기기의 브라우저 저장소</span></li>
+          <li><b>이 기기에도 한 벌</b>: 같은 내용을 기기에도 저장해 둬서 인터넷이 잠깐 끊겨도 바로 열려요.</li>
+          <li><b>저장 순서</b>: 추가하거나 체크하면 화면과 기기에 바로 반영되고, 잠시 뒤 서버로 올라가요. 오른쪽 위 표시가 "동기화됨"이면 올라간 거예요.</li>
+          <li><b>업데이트해도 안전</b>: 데이터에 저장 형식 번호가 붙어 있어서, 앱이 형식을 바꾸면 열 때 자동으로 변환해요. 모르는 항목은 지우지 않아요.</li>
+          <li><b>구입처 인식</b>: 맨 앞 단어가 아는 가게(다이소, 이마트, 쿠팡 등이나 한 번 쓴 가게)일 때만 구입처로 읽어요. 처음 쓰는 가게는 "@동네마트 두부"처럼 적으면 기억해요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>버전 기록</h3>
+        <ol class="changelog" id="changelog"></ol>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden><span id="toastMsg"></span><button id="toastUndo" type="button">되돌리기</button></div>
+
+<script>
+/* ===== 목록 유형 레지스트리 =====
+   새 목록(예: 할일)은 여기에 항목을 추가하고 enabled: true 로 바꾸면 탭이 생깁니다.
+   데이터 구조(items/recent)는 모든 유형이 공유합니다. */
+const LIST_TYPES = {
+  shopping: {
+    enabled: true,
+    label: "장바구니",
+    placeholder: "살 것 입력 (예: 다이소 우유 2개)",
+    hint: "앞에 구입처, 끝에 수량: 다이소 우유 2개. 처음 쓰는 가게는 @를 붙여요: @동네마트 두부",
+    parseQty: true,
+    parseStore: true,
+    openTitle: "살 것",
+    doneTitle: "담은 것",
+    clearLabel: "담은 것 지우기",
+    emptyTitle: "살 것이 없어요",
+    emptyBody: "위 입력칸에 적어 두고, 장 볼 때 담으면서 체크하세요.",
+    shortEmpty: "살 것이 없어요",
+    showRecent: true,
+  },
+  todo: {
+    enabled: true,
+    label: "할일",
+    placeholder: "할 일 입력",
+    hint: "",
+    parseQty: false,
+    parseStore: false,
+    openTitle: "할 일",
+    doneTitle: "완료",
+    clearLabel: "완료 항목 지우기",
+    emptyTitle: "할 일이 없어요",
+    emptyBody: "위 입력칸에 할 일을 적어 보세요.",
+    shortEmpty: "할 일이 없어요",
+    showRecent: false,
+  },
+};
+
+/* ===== 앱 버전 =====
+   앱을 고칠 때마다 APP_VERSION 을 올리고 CHANGELOG 맨 위에 한 줄 추가합니다.
+   앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
+const APP_VERSION = "1.5.0";
+const CHANGELOG = [
+  { v: "1.5.0", date: "2026-11-16", notes: ["버전 표시를 누르면 작동 원리와 버전 기록이 팝업으로 열림", "JSON 내보내기·가져오기 화면 제거", "Netlify 서버 저장소(Netlify Blobs) 지원: 재배포해도 목록 유지, 연결 링크로 다른 기기와 공유"] },
+  { v: "1.4.0", date: "2026-11-16", notes: ["맨 앞에 구입처를 적으면 인식 (다이소 우유 2개, @동네마트 두부)", "구입처별 필터와 항목 옆 구입처 표시", "데이터 저장 형식 2번: 항목에 구입처, 기억한 구입처 목록 추가 (기존 데이터 자동 변환)"] },
+  { v: "1.3.0", date: "2026-11-16", notes: ["버전 기록과 작동 원리 설명 추가"] },
+  { v: "1.2.0", date: "2026-11-16", notes: ["저장 형식 번호와 자동 변환 추가", "JSON 내보내기·가져오기(합치기/바꾸기)", "직전 상태로 되돌리기"] },
+  { v: "1.1.0", date: "2026-11-16", notes: ["할일 탭 추가", "장바구니와 할일을 한 화면에 보는 전체 보기"] },
+  { v: "1.0.2", date: "2026-11-16", notes: ["동기화된 목록을 불러온 뒤 추가가 안 되던 문제 수정"] },
+  { v: "1.0.1", date: "2026-11-16", notes: ["claude.ai 화면에서 추가 버튼과 Enter가 안 되던 문제 수정"] },
+  { v: "1.0.0", date: "2026-11-16", notes: ["장바구니 메모 첫 버전: 추가, 수량 표시, 체크, 최근 항목, 기기 간 동기화"] },
+];
+
+const STORE_KEY = "basket-memo:v1";
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const ICON_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
+/* ===== 저장 형식 =====
+   데이터는 코드와 분리된 JSON 문서로 저장됩니다:
+     { version, updatedAt, lists: { <유형>: { items: [{id,text,qty,done,createdAt,doneAt}], recent: [] } } }
+   저장 위치: claude.ai 계정 저장소(기기 간 동기화) + 이 기기 localStorage.
+   형식을 바꿀 때는 SCHEMA_VERSION 을 올리고 MIGRATIONS 에 변환 함수를 추가하세요.
+   모르는 필드와 목록 유형은 지우지 않고 그대로 보존합니다. */
+const SCHEMA_VERSION = 2;
+const MIGRATIONS = {
+  // 0 → 1: version 필드가 없던 초기 데이터
+  0: s => ({ ...s, version: 1 }),
+  // 1 → 2: 항목에 store(구입처) 추가, 기억한 구입처 목록 stores 추가
+  1: s => {
+    const lists = {};
+    for (const [k, l] of Object.entries(s.lists || {})) {
+      lists[k] = { ...l, items: (l.items || []).map(i => ({ store: "", ...i })) };
+    }
+    return { ...s, lists, stores: Array.isArray(s.stores) ? s.stores : [], version: 2 };
+  },
+};
+function migrate(s) {
+  if (!s || typeof s !== "object") return null;
+  let v = Number(s.version) || 0;
+  while (v < SCHEMA_VERSION && MIGRATIONS[v]) { s = MIGRATIONS[v](s); v = Number(s.version); }
+  return s;
+}
+
+function blankState() {
+  const lists = {};
+  for (const k of Object.keys(LIST_TYPES)) lists[k] = { items: [], recent: [] };
+  return { version: SCHEMA_VERSION, lists, stores: [] };
+}
+function normalize(s) {
+  s = migrate(s);
+  const out = blankState();
+  if (s && typeof s === "object") {
+    // 앱이 모르는 최상위 필드도 버리지 않고 보존
+    for (const [k, v] of Object.entries(s)) if (!(k in out) && k !== "sample") out[k] = v;
+    if (Array.isArray(s.stores)) out.stores = s.stores.filter(x => typeof x === "string" && x);
+  }
+  if (s && Number(s.version) > SCHEMA_VERSION) out.version = Number(s.version); // 더 새 형식이면 버전을 낮추지 않음
+  if (s && s.updatedAt) out.updatedAt = s.updatedAt;
+  if (s && s.lists) {
+    for (const k of Object.keys(s.lists)) {
+      const l = s.lists[k] || {};
+      out.lists[k] = { items: Array.isArray(l.items) ? l.items : [], recent: Array.isArray(l.recent) ? l.recent : [] };
+    }
+  }
+  if (s && s.sample) out.sample = true;
+  return out;
+}
+function loadLocal() {
+  try { const raw = localStorage.getItem(STORE_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+}
+function saveLocal() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+/* 통째로 바뀌기 직전 상태를 한 벌 보관 (가져오기/동기화로 덮일 때) */
+function keepBackup() {
+  if (state.sample || !state.lists || !Object.values(state.lists).some(l => l.items.length)) return;
+  try { localStorage.setItem(STORE_KEY + ":prev", JSON.stringify(state)); } catch (e) {}
+}
+function loadBackup() { try { const r = localStorage.getItem(STORE_KEY + ":prev"); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+function loadUI() { try { return JSON.parse(localStorage.getItem(STORE_KEY + ":ui")) || {}; } catch (e) { return {}; } }
+function saveUI() { try { localStorage.setItem(STORE_KEY + ":ui", JSON.stringify({ active, addTarget, storeFilter })); } catch (e) {} }
+
+const enabledTypes = () => Object.keys(LIST_TYPES).filter(k => LIST_TYPES[k].enabled);
+let state = normalize(loadLocal() || sampleState());
+/* "all" 은 모든 목록을 한 화면에 모아 보는 가상 탭 */
+const ui = loadUI();
+let active = ui.active;
+if (active !== "all" && !enabledTypes().includes(active)) active = enabledTypes()[0];
+let addTarget = enabledTypes().includes(ui.addTarget) ? ui.addTarget : enabledTypes()[0];
+const NO_STORE = "__none";
+let storeFilter = typeof ui.storeFilter === "string" ? ui.storeFilter : "";
+const targetType = () => active === "all" ? addTarget : active;
+
+function sampleState() {
+  const s = blankState(); const now = Date.now();
+  s.lists.shopping.items = [
+    { id: uid(), store: "이마트", text: "우유", qty: "2", done: false, createdAt: now },
+    { id: uid(), store: "이마트", text: "계란", qty: "1판", done: false, createdAt: now },
+    { id: uid(), store: "다이소", text: "건전지", qty: "AA", done: false, createdAt: now },
+    { id: uid(), store: "", text: "대파", qty: "", done: false, createdAt: now },
+    { id: uid(), store: "", text: "두부", qty: "", done: true, createdAt: now, doneAt: now },
+  ];
+  s.lists.shopping.recent = ["바나나", "식빵", "휴지"];
+  s.sample = true;
+  return s;
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+/* "우유 2", "계란 1판", "사과 3개" → 이름 + 수량 */
+/* 구입처 인식: 첫 단어가 아는 가게(기본 목록 + 한 번 쓴 가게)일 때만 구입처로 봅니다.
+   "서울우유 1"처럼 붙여 쓴 이름이나 "냉동 만두"는 구입처로 오인하지 않습니다.
+   처음 쓰는 가게는 "@동네마트 두부" 또는 "동네마트: 두부"로 적으면 기억합니다. */
+const DEFAULT_STORES = ["다이소", "이마트", "홈플러스", "롯데마트", "코스트코", "트레이더스", "노브랜드", "쿠팡", "컬리", "마켓컬리",
+  "올리브영", "편의점", "GS25", "CU", "세븐일레븐", "이마트24", "시장", "약국", "하나로마트", "농협", "SSG", "네이버", "오아시스", "다이소몰"];
+function knownStores() {
+  const seen = new Map();
+  for (const x of [...(state.stores || []), ...DEFAULT_STORES]) if (!seen.has(x.toLowerCase())) seen.set(x.toLowerCase(), x);
+  return seen;
+}
+function parseEntry(raw, type) {
+  let t = raw.trim().replace(/\s+/g, " ");
+  const cfg = LIST_TYPES[type];
+  let store = "";
+  if (cfg.parseStore) {
+    const ex = t.match(/^@(\S+)\s+(.+)$/) || t.match(/^([^\s:：]{1,15})\s*[:：]\s*(.+)$/);
+    if (ex) { store = ex[1]; t = ex[2].trim(); }
+    else {
+      const sp = t.indexOf(" ");
+      if (sp > 0) {
+        const hit = knownStores().get(t.slice(0, sp).toLowerCase());
+        if (hit) { store = hit; t = t.slice(sp + 1).trim(); }
+      }
+    }
+  }
+  if (!cfg.parseQty) return { store, text: t, qty: "" };
+  const m = t.match(/^(.+?)\s+(\d+(?:\.\d+)?\s*[^\s\d]{0,3}|[x×]\s*\d+)$/i);
+  if (m && m[1].trim()) return { store, text: m[1].trim(), qty: m[2].replace(/\s+/g, "") };
+  return { store, text: t, qty: "" };
+}
+function rememberStore(store) {
+  if (!store) return;
+  state.stores = [store, ...(state.stores || []).filter(x => x.toLowerCase() !== store.toLowerCase())].slice(0, 40);
+}
+/* 최근 항목·수정칸에 쓰는 표기: "다이소 우유" (+ 수량) */
+function entryLabel(it, withQty) {
+  const known = it.store && knownStores().get(it.store.toLowerCase());
+  const prefix = it.store ? (known ? it.store + " " : "@" + it.store + " ") : "";
+  return prefix + it.text + (withQty && it.qty ? " " + it.qty : "");
+}
+
+/* ===== 변경 ===== */
+let lastRemoved = null;
+function list(t = targetType()) { return state.lists[t]; }
+function commit() {
+  if (state.sample) delete state.sample;
+  state.updatedAt = Date.now();
+  saveLocal(); render(); queueRemote();
+}
+function addItem(raw, type = targetType()) {
+  let { store, text, qty } = parseEntry(raw, type);
+  if (!text) return;
+  // 구입처 필터를 걸어 둔 상태면 그 가게로 추가
+  if (!store && LIST_TYPES[type].parseStore && storeFilter && storeFilter !== NO_STORE) store = storeFilter;
+  rememberStore(store);
+  const l = list(type);
+  const existing = l.items.find(i => i.text === text && (i.store || "") === store && !i.done);
+  if (existing) { if (qty) existing.qty = qty; }
+  else l.items.unshift({ id: uid(), store, text, qty, done: false, createdAt: Date.now() });
+  const label = entryLabel({ store, text });
+  l.recent = l.recent.filter(r => r !== label && r !== text);
+  commit();
+}
+function toggle(id, type) {
+  const it = list(type).items.find(i => i.id === id); if (!it) return;
+  it.done = !it.done; it.doneAt = it.done ? Date.now() : undefined;
+  commit();
+}
+function rememberRecent(texts, type) {
+  const l = list(type);
+  l.recent = [...new Set([...texts, ...l.recent])].filter(t => !l.items.some(i => entryLabel(i) === t && !i.done)).slice(0, 12);
+}
+function removeItem(id, type) {
+  const l = list(type); const idx = l.items.findIndex(i => i.id === id); if (idx < 0) return;
+  const [it] = l.items.splice(idx, 1);
+  lastRemoved = { type, items: [[idx, it]], recent: l.recent.slice() };
+  if (LIST_TYPES[type].showRecent) rememberRecent([entryLabel(it)], type);
+  commit(); showToast(`'${it.text}' 삭제됨`);
+}
+function clearDone(type) {
+  const l = list(type); const removed = [];
+  l.items = l.items.filter((it, idx) => { if (it.done) { removed.push([idx, it]); return false; } return true; });
+  if (!removed.length) return;
+  lastRemoved = { type, items: removed, recent: l.recent.slice() };
+  if (LIST_TYPES[type].showRecent) rememberRecent(removed.map(r => entryLabel(r[1])), type);
+  commit(); showToast(`${removed.length}개 지움`);
+}
+function undo() {
+  if (!lastRemoved) return;
+  const l = state.lists[lastRemoved.type];
+  for (const [idx, it] of lastRemoved.items) l.items.splice(Math.min(idx, l.items.length), 0, it);
+  l.recent = lastRemoved.recent; lastRemoved = null;
+  hideToast(); commit();
+}
+function editItem(id, raw, type) {
+  const it = list(type).items.find(i => i.id === id); if (!it) return;
+  const { store, text, qty } = parseEntry(raw, type);
+  if (!text) { removeItem(id, type); return; }
+  rememberStore(store);
+  it.store = store; it.text = text; it.qty = qty; commit();
+}
+
+/* ===== 화면 ===== */
+const $ = id => document.getElementById(id);
+let editing = null;
+
+const openCount = k => state.lists[k].items.filter(i => !i.done).length;
+
+function render() {
+  const types = enabledTypes(); const isAll = active === "all";
+  const tType = targetType(); const cfg = LIST_TYPES[tType]; const l = list(tType);
+  $("title").textContent = isAll ? "전체" : cfg.label;
+  $("addInput").placeholder = cfg.placeholder;
+  $("hint").textContent = isAll ? "" : cfg.hint; $("hint").hidden = isAll || !cfg.hint;
+
+  const sel = $("addTarget"); sel.hidden = !isAll;
+  if (sel.options.length !== types.length) {
+    sel.innerHTML = "";
+    for (const k of types) { const o = document.createElement("option"); o.value = k; o.textContent = LIST_TYPES[k].label; sel.appendChild(o); }
+  }
+  sel.value = addTarget;
+
+  const tabs = $("tabs");
+  tabs.hidden = types.length < 2;
+  tabs.innerHTML = "";
+  const tabKeys = types.length > 1 ? ["all", ...types] : types;
+  for (const k of tabKeys) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "tab"; b.role = "tab"; b.id = "tab-" + k;
+    b.setAttribute("aria-selected", String(k === active));
+    const n = k === "all" ? types.reduce((a, t) => a + openCount(t), 0) : openCount(k);
+    b.textContent = (k === "all" ? "전체" : LIST_TYPES[k].label) + (n ? ` ${n}` : "");
+    b.onclick = () => { active = k; editing = null; saveUI(); render(); };
+    tabs.appendChild(b);
+  }
+
+  $("sampleNote").hidden = !state.sample;
+
+  const rc = $("recent"); rc.innerHTML = "";
+  if (cfg.showRecent && !isAll) {
+    for (const t of l.recent.slice(0, 8)) {
+      const c = document.createElement("button");
+      c.type = "button"; c.className = "chip"; c.textContent = "+ " + t;
+      c.onclick = () => addItem(t, tType);
+      rc.appendChild(c);
+    }
+  }
+  rc.hidden = !rc.children.length;
+
+  renderStoreFilter(isAll ? types.filter(k => LIST_TYPES[k].parseStore) : (cfg.parseStore ? [tType] : []));
+
+  const main = $("main"); main.innerHTML = "";
+
+  if (isAll) {
+    for (const k of types) main.appendChild(groupEl(k));
+    return;
+  }
+  const shown = filtered(l.items, tType);
+  const open = shown.filter(i => !i.done);
+  const done = sortDone(shown);
+
+  if (l.items.length && !shown.length) {
+    main.innerHTML = `<section><div class="empty"><strong></strong><span></span></div></section>`;
+    main.querySelector("strong").textContent = `${filterName()}에서 살 것이 없어요`;
+    main.querySelector("span").textContent = "위 구입처 필터에서 전체를 누르면 모든 항목이 보여요.";
+    return;
+  }
+  if (!l.items.length) {
+    main.innerHTML = `<section><div class="empty"><strong></strong><span></span></div></section>`;
+    main.querySelector("strong").textContent = cfg.emptyTitle;
+    main.querySelector("span").textContent = cfg.emptyBody;
+    return;
+  }
+  main.appendChild(sectionEl(cfg.openTitle, open, null, tType));
+  if (done.length) main.appendChild(sectionEl(cfg.doneTitle, done, cfg.clearLabel, tType));
+}
+
+/* ===== 구입처 필터 ===== */
+function filtered(items, type) {
+  if (!LIST_TYPES[type].parseStore || !storeFilter) return items;
+  if (storeFilter === NO_STORE) return items.filter(i => !i.store);
+  return items.filter(i => (i.store || "").toLowerCase() === storeFilter.toLowerCase());
+}
+function filterName() { return storeFilter === NO_STORE ? "구입처 미지정" : storeFilter; }
+function renderStoreFilter(typeKeys) {
+  const box = $("storeFilter"); box.innerHTML = "";
+  const counts = new Map(); let none = 0;
+  for (const k of typeKeys) for (const i of state.lists[k].items) {
+    if (i.done) continue;
+    if (i.store) { const key = i.store.toLowerCase(); const c = counts.get(key) || { name: i.store, n: 0 }; c.n++; counts.set(key, c); }
+    else none++;
+  }
+  // 걸어 둔 필터의 가게가 목록에서 사라졌으면 해제
+  if (storeFilter && storeFilter !== NO_STORE && !counts.has(storeFilter.toLowerCase()) &&
+      !typeKeys.some(k => state.lists[k].items.some(i => (i.store || "").toLowerCase() === storeFilter.toLowerCase()))) { storeFilter = ""; saveUI(); }
+  if (!typeKeys.length || (!counts.size && storeFilter !== NO_STORE)) { box.hidden = true; return; }
+  box.hidden = false;
+  const lab = document.createElement("span"); lab.className = "label"; lab.textContent = "구입처"; box.appendChild(lab);
+  const add = (value, name, n) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "fchip";
+    b.setAttribute("aria-pressed", String(storeFilter.toLowerCase() === value.toLowerCase()));
+    b.textContent = name;
+    if (n != null) { const s = document.createElement("span"); s.className = "n"; s.textContent = n; b.appendChild(s); }
+    b.onclick = () => { storeFilter = (storeFilter === value && value) ? "" : value; saveUI(); render(); };
+    box.appendChild(b);
+  };
+  add("", "전체", null);
+  for (const c of [...counts.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, "ko"))) add(c.name, c.name, c.n);
+  if (none) add(NO_STORE, "미지정", none);
+}
+
+function sortDone(items) { return items.filter(i => i.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)); }
+
+/* 전체 보기: 목록마다 제목 + 남은 것 + 끝난 것 */
+function groupEl(k) {
+  const cfg = LIST_TYPES[k]; const items = state.lists[k].items;
+  const g = document.createElement("div"); g.className = "group";
+  const head = document.createElement("div"); head.className = "grouphead";
+  const h = document.createElement("h2"); h.textContent = cfg.label;
+  const c = document.createElement("span"); c.className = "count"; c.textContent = `남은 ${openCount(k)}`;
+  head.append(h, c); g.appendChild(head);
+  const shown = filtered(items, k);
+  const open = shown.filter(i => !i.done); const done = sortDone(shown);
+  if (!open.length && !done.length) {
+    const sec = document.createElement("section");
+    const e = document.createElement("div"); e.className = "empty";
+    e.textContent = items.length && cfg.parseStore && storeFilter ? `${filterName()}에서 살 것이 없어요` : cfg.shortEmpty;
+    sec.appendChild(e); g.appendChild(sec);
+  }
+  if (open.length) g.appendChild(sectionEl(cfg.openTitle, open, null, k));
+  if (done.length) g.appendChild(sectionEl(cfg.doneTitle, done, cfg.clearLabel, k));
+  return g;
+}
+
+function sectionEl(title, items, clearLabel, type) {
+  const sec = document.createElement("section");
+  const head = document.createElement("div"); head.className = "sechead";
+  const h = document.createElement("h2"); h.innerHTML = `<span></span> <span class="count"></span>`;
+  h.children[0].textContent = title; h.children[1].textContent = items.length;
+  head.appendChild(h);
+  if (clearLabel) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "link"; b.textContent = clearLabel;
+    b.onclick = () => clearDone(type); head.appendChild(b);
+  }
+  sec.appendChild(head);
+  const ul = document.createElement("ul"); ul.className = "items";
+  for (const it of items) ul.appendChild(itemEl(it, type));
+  sec.appendChild(ul);
+  return sec;
+}
+
+function itemEl(it, type) {
+  const li = document.createElement("li"); li.className = "item" + (it.done ? " done" : "");
+  const chk = document.createElement("button");
+  chk.type = "button"; chk.className = "check"; chk.innerHTML = ICON_CHECK;
+  chk.setAttribute("aria-label", (it.done ? "체크 해제: " : "체크: ") + it.text);
+  chk.onclick = () => toggle(it.id, type);
+  li.appendChild(chk);
+
+  if (editing === it.id) {
+    const inp = document.createElement("input");
+    inp.className = "edit"; inp.id = "edit-" + it.id; inp.value = entryLabel(it, true);
+    let doneEdit = false;
+    const finish = save => { if (doneEdit) return; doneEdit = true; editing = null; if (save) editItem(it.id, inp.value, type); else render(); };
+    inp.onkeydown = e => { if (e.isComposing || e.keyCode === 229) return; if (e.key === "Enter") finish(true); if (e.key === "Escape") finish(false); };
+    inp.onblur = () => finish(true);
+    li.appendChild(inp);
+    setTimeout(() => { inp.focus(); inp.select(); }, 0);
+  } else {
+    const body = document.createElement("div"); body.className = "body"; body.title = "눌러서 수정";
+    if (it.store) { const st = document.createElement("span"); st.className = "store"; st.textContent = it.store; body.appendChild(st); }
+    const t = document.createElement("span"); t.className = "text"; t.textContent = it.text; body.appendChild(t);
+    if (it.qty) { const q = document.createElement("span"); q.className = "qty"; q.textContent = it.qty; body.appendChild(q); }
+    body.onclick = () => { editing = it.id; render(); };
+    li.appendChild(body);
+  }
+  const del = document.createElement("button");
+  del.type = "button"; del.className = "icon"; del.innerHTML = ICON_DEL; del.setAttribute("aria-label", "삭제: " + it.text);
+  del.onclick = () => removeItem(it.id, type);
+  li.appendChild(del);
+  return li;
+}
+
+let toastTimer;
+function showToast(msg) {
+  $("toastMsg").textContent = msg; $("toast").hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, 5000);
+}
+function hideToast() { $("toast").hidden = true; }
+
+/* form submit 은 claude.ai 보기 화면에서 막히므로 버튼/Enter 를 직접 처리 */
+function submitAdd() {
+  const inp = $("addInput"); const v = inp.value;
+  if (v.trim()) { addItem(v); inp.value = ""; }
+  inp.focus();
+}
+$("addBtn").addEventListener("click", submitAdd);
+$("addInput").addEventListener("keydown", e => {
+  if (e.key !== "Enter" || e.isComposing || e.keyCode === 229) return; // 한글 조합 중 Enter 무시
+  e.preventDefault(); submitAdd();
+});
+$("toastUndo").onclick = undo;
+$("addTarget").addEventListener("change", e => { addTarget = e.target.value; saveUI(); render(); });
+$("clearSample").onclick = () => { state = blankState(); commit(); };
+
+function setSync(st, text) { const el = $("sync"); el.dataset.state = st; el.textContent = text; }
+
+/* ===== 서버 저장 (앱 코드와 분리된 JSON) =====
+   - Netlify에 배포: /api/list 함수가 Netlify Blobs 에 JSON 으로 저장. 재배포해도 데이터 유지.
+   - claude.ai 링크: 계정 저장소(db)에 저장.
+   - 그 밖(파일로 열기): 이 기기 localStorage 만. */
+let remoteSave = null, remoteReady = false, writing = false, dirty = false, writeTimer = null;
+let syncMode = "local";
+function queueRemote() {
+  if (!remoteSave || !remoteReady) return;
+  dirty = true; setSync("saving", "저장 중…");
+  clearTimeout(writeTimer); writeTimer = setTimeout(flushRemote, 600);
+}
+async function flushRemote() {
+  if (writing || !dirty) return;
+  writing = true; dirty = false;
+  try { await remoteSave(JSON.parse(JSON.stringify(state))); setSync("synced", "동기화됨"); }
+  catch (e) { setSync("local", "이 기기에 저장 (서버 저장 실패)"); dirty = true; setTimeout(flushRemote, 15000); }
+  writing = false;
+  if (dirty) flushRemote();
+}
+async function initRemote() {
+  if (window.claude && typeof window.claude.use === "function") return initClaude();
+  if (/^https?:$/.test(location.protocol)) return initNetlify();
+}
+async function initClaude() {
+  try {
+    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    if (!db || !user) return;
+    const id = await user.id();
+    if (!id) return;
+    const ref = db.doc(`data/users/${id}/app`);
+    remoteSave = d => ref.set(d); syncMode = "claude"; updateInfo();
+    setSync("saving", "불러오는 중…");
+    const timer = setTimeout(() => { if (!remoteReady) setSync("local", "이 기기에 저장 (연결 대기)"); }, 10000);
+    ref.onSnapshot(snap => {
+      if (snap.metadata && snap.metadata.fromCache) { if (snap.exists && !writing && !dirty) applyRemote(snap.data()); return; }
+      clearTimeout(timer);
+      const first = !remoteReady; remoteReady = true;
+      if (snap.exists) {
+        if (!(snap.metadata && snap.metadata.hasPendingWrites) && !writing && !dirty) applyRemote(snap.data());
+        setSync("synced", "동기화됨");
+      } else if (first) {
+        if (state.sample) { state = blankState(); saveLocal(); render(); }
+        dirty = true; flushRemote();
+      }
+    }, () => { clearTimeout(timer); setSync("local", "이 기기에 저장"); remoteSave = null; });
+  } catch (e) { /* 동기화 없이 동작 */ }
+}
+
+/* --- Netlify: 기기별 열쇠(무작위 문자열)로 내 목록을 찾음. 다른 기기는 연결 링크(#k=열쇠)로 같은 열쇠를 받음 --- */
+const KEY_RE = /^[A-Za-z0-9_-]{24,64}$/;
+let listKey = null, lastRemoteAt = 0;
+function randomKey() {
+  const a = new Uint8Array(24); crypto.getRandomValues(a);
+  return btoa(String.fromCharCode(...a)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function apiUrl() { return "/api/list?k=" + encodeURIComponent(listKey); }
+async function fetchRemote() {
+  const r = await fetch(apiUrl(), { cache: "no-store" });
+  const ct = r.headers.get("content-type") || "";
+  if (!ct.includes("json")) throw new Error("no-api");
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error("http " + r.status);
+  return (await r.json()).data || null;
+}
+async function initNetlify() {
+  const m = location.hash.match(/k=([A-Za-z0-9_-]{24,64})/);
+  try { listKey = localStorage.getItem(STORE_KEY + ":key"); } catch (e) {}
+  let adopted = false;
+  if (m && m[1] !== listKey) { listKey = m[1]; adopted = true; }
+  if (m) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
+  if (!listKey || !KEY_RE.test(listKey)) listKey = randomKey();
+  let remote;
+  try { setSync("saving", "불러오는 중…"); remote = await fetchRemote(); }
+  catch (e) { setSync("local", e.message === "no-api" ? "이 기기에 저장" : "이 기기에 저장 (서버 연결 안 됨)"); listKey = null; return; }
+  try { localStorage.setItem(STORE_KEY + ":key", listKey); } catch (e) {}
+  remoteSave = async d => {
+    const r = await fetch(apiUrl(), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(d) });
+    if (!r.ok) throw new Error("http " + r.status);
+    lastRemoteAt = d.updatedAt || 0;
+  };
+  syncMode = "netlify"; remoteReady = true; updateInfo();
+  if (remote && (adopted || state.sample || (remote.updatedAt || 0) >= (state.updatedAt || 0))) {
+    lastRemoteAt = remote.updatedAt || 0; applyRemote(remote); setSync("synced", "동기화됨");
+  } else {
+    if (state.sample) { state = blankState(); saveLocal(); render(); }
+    dirty = true; flushRemote();
+  }
+  // 다른 기기에서 바꾼 내용 받아오기: 화면을 다시 볼 때와 20초마다
+  const pull = async () => {
+    if (document.hidden || writing || dirty || editing) return;
+    try {
+      const d = await fetchRemote();
+      if (d && (d.updatedAt || 0) > lastRemoteAt) { lastRemoteAt = d.updatedAt || 0; applyRemote(d); }
+      setSync("synced", "동기화됨");
+    } catch (e) { setSync("local", "이 기기에 저장 (서버 연결 안 됨)"); }
+  };
+  document.addEventListener("visibilitychange", pull);
+  window.addEventListener("focus", pull);
+  setInterval(pull, 20000);
+}
+
+/* ===== 정보 팝업 ===== */
+function updateInfo() {
+  $("storeWhere").textContent =
+    syncMode === "netlify" ? "Netlify 서버 저장소(Netlify Blobs)에 JSON 파일로 저장해요. 앱을 다시 배포해도 이 저장소는 그대로예요." :
+    syncMode === "claude" ? "내 claude.ai 계정 저장소에 저장해요. 휴대폰과 PC가 같은 목록을 봐요." :
+    "이 기기의 브라우저 저장소에만 저장해요.";
+  $("connectBox").hidden = syncMode !== "netlify";
+  if (syncMode === "netlify") $("connectLink").value = location.origin + location.pathname + "#k=" + listKey;
+}
+function openInfo() { updateInfo(); $("infoModal").hidden = false; $("infoClose").focus(); }
+function closeInfo() { $("infoModal").hidden = true; $("verBtn").focus(); }
+$("verBtn").addEventListener("click", openInfo);
+$("infoClose").addEventListener("click", closeInfo);
+$("infoModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeInfo(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("infoModal").hidden) closeInfo(); });
+$("copyLink").addEventListener("click", async () => {
+  const inp = $("connectLink");
+  try { await navigator.clipboard.writeText(inp.value); $("copyStatus").textContent = "복사했어요. 다른 기기에서 열어 주세요."; }
+  catch (e) { inp.select(); $("copyStatus").textContent = "선택해 두었어요. 길게 눌러 복사하세요."; }
+});
+
+function applyRemote(data) {
+  if (!data || editing) return;
+  // 동기화 데이터는 읽기 전용(고정) 객체라 그대로 쓰면 추가/수정이 막힘 → 복사본 사용
+  const next = normalize(JSON.parse(JSON.stringify(data)));
+  if (JSON.stringify(next.lists) !== JSON.stringify(state.lists)) keepBackup();
+  state = next; saveLocal(); render();
+}
+
+function renderAbout() {
+  $("verBtn").textContent = "v" + APP_VERSION.split(".").slice(0, 2).join(".");
+  $("infoVer").textContent = "v" + APP_VERSION;
+  const ol = $("changelog"); ol.innerHTML = "";
+  for (const c of CHANGELOG) {
+    const li = document.createElement("li");
+    const head = document.createElement("div"); head.className = "head";
+    const n = document.createElement("span"); n.className = "num"; n.textContent = "v" + c.v;
+    const d = document.createElement("span"); d.className = "date"; d.textContent = c.date;
+    head.append(n, d);
+    const ul = document.createElement("ul");
+    for (const t of c.notes) { const x = document.createElement("li"); x.textContent = t; ul.appendChild(x); }
+    li.append(head, ul); ol.appendChild(li);
+  }
+  const sv = document.createElement("li");
+  sv.innerHTML = '<div class="head"><span class="date"></span></div>';
+  sv.querySelector(".date").textContent = `데이터 저장 형식: ${SCHEMA_VERSION}번`;
+  ol.appendChild(sv);
+}
+
+renderAbout();
+render();
+initRemote();
+</script>
+
+</body>
+</html>

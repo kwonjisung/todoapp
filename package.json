@@ -1,0 +1,9 @@
+{
+  "name": "shopping-app",
+  "private": true,
+  "type": "module",
+  "description": "장바구니 메모 앱 (Netlify + Netlify Blobs)",
+  "dependencies": {
+    "@netlify/blobs": "11.1.7"
+  }
+}
