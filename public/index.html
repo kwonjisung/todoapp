@@ -153,6 +153,24 @@ li.done .qty { color: var(--done); background: transparent; }
   border: 0; padding: 2px 9px; border-radius: 999px; cursor: pointer; font-variant-numeric: tabular-nums;
 }
 .ver:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ghostver { background: transparent; border: 1px solid var(--line); color: var(--muted); font-weight: 500; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.stat b { display: block; font-family: var(--font-display); font-weight: 400; font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12.5px; color: var(--muted); }
+.hday { margin-top: 14px; }
+.hday h3 { font-size: 13px; color: var(--muted); margin: 0 0 6px; font-variant-numeric: tabular-nums; }
+.hday ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.hday li { display: flex; gap: 8px; align-items: baseline; font-size: 14.5px; }
+.hday li::before { content: "✔"; color: var(--accent); font-size: 12px; }
+.hday .late { font-size: 12px; color: var(--danger); }
+.donehead { font: inherit; display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; cursor: pointer; color: var(--muted); }
+.donehead:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.donehead .chev { font-size: 13px; line-height: 1; transition: transform .15s; }
+.donehead[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.doneat { font-size: 12px; color: var(--done); white-space: nowrap; margin-left: auto; font-variant-numeric: tabular-nums; }
+.rep { font-size: 12px; color: var(--accent); white-space: nowrap; }
+.archnote { font-size: 12.5px; color: var(--muted); margin: 6px 2px 0; }
 .right { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .modal {
   position: fixed; inset: 0; z-index: 30; background: rgb(10 20 14 / .45);
@@ -198,7 +216,7 @@ li.done .qty { color: var(--done); background: transparent; }
   <header>
     <div class="titlebar">
       <h1 id="title">장바구니</h1>
-      <span class="right"><span class="sync" id="sync" data-state="local">이 기기에 저장</span><button class="ver" id="verBtn" type="button" aria-haspopup="dialog"></button></span>
+      <span class="right"><span class="sync" id="sync" data-state="local">이 기기에 저장</span><button class="ver ghostver" id="histBtn" type="button" aria-haspopup="dialog">완료 기록</button><button class="ver" id="verBtn" type="button" aria-haspopup="dialog"></button></span>
     </div>
     <nav class="tabs" id="tabs" role="tablist" hidden></nav>
     <div class="add" id="addForm">
@@ -213,6 +231,18 @@ li.done .qty { color: var(--done); background: transparent; }
 
   <p class="hint" id="sampleNote" hidden>지금 보이는 항목은 예시예요. <button class="link" id="clearSample" type="button">예시 지우고 시작</button></p>
   <main id="main"></main>
+</div>
+<div class="modal" id="histModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="histTitle">
+    <div class="sheethead">
+      <h2 id="histTitle">완료 기록</h2>
+      <button class="icon" id="histClose" type="button" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="sheetbody">
+      <div class="stats" id="histStats"></div>
+      <div id="histList"></div>
+    </div>
+  </div>
 </div>
 <div class="modal" id="infoModal" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
@@ -261,7 +291,7 @@ const LIST_TYPES = {
     parseStore: true,
     openTitle: "살 것",
     doneTitle: "담은 것",
-    clearLabel: "담은 것 지우기",
+    clearLabel: "담은 것 비우기",
     emptyTitle: "살 것이 없어요",
     emptyBody: "위 입력칸에 적어 두고, 장 볼 때 담으면서 체크하세요.",
     shortEmpty: "살 것이 없어요",
@@ -271,13 +301,14 @@ const LIST_TYPES = {
     enabled: true,
     label: "할일",
     placeholder: "할 일 입력 (예: 11/17 차량 세차)",
-    hint: "앞에 날짜를 적으면 마감일이 돼요: 오늘, 내일, 모레, 11/17, 11월 17일",
+    hint: "앞에 날짜를 적으면 마감일: 오늘, 11/17. 반복은 매일, 매주 월, 매월 15일",
     parseQty: false,
     parseStore: false,
     parseDue: true,
     openTitle: "할 일",
     doneTitle: "완료",
-    clearLabel: "완료 항목 지우기",
+    clearLabel: "",
+    collapseDone: true,
     emptyTitle: "할 일이 없어요",
     emptyBody: "위 입력칸에 할 일을 적어 보세요.",
     shortEmpty: "할 일이 없어요",
@@ -288,8 +319,9 @@ const LIST_TYPES = {
 /* ===== 앱 버전 =====
    앱을 고칠 때마다 APP_VERSION 을 올리고 CHANGELOG 맨 위에 한 줄 추가합니다.
    앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.8.0";
 const CHANGELOG = [
+  { v: "1.8.0", date: "2026-11-16", notes: ["할일 완료는 접힌 \"완료\" 칸으로 내려가고 완료 날짜 표시, 다시 눌러 되돌리기", "완료 후 7일 지난 할일은 메인에서 숨기고 완료 기록으로 (데이터는 그대로)", "완료 기록 팝업: 날짜별 목록, 오늘·이번 주 완료 개수", "반복 할일: 매일 / 매주 월 / 매월 15일 — 완료하면 다음 날짜로 새로 생김", "장바구니 \"담은 것 비우기\"", "데이터 저장 형식 4번: 반복(repeat) 추가"] },
   { v: "1.7.0", date: "2026-11-16", notes: ["할일 마감일: \"오늘 트럭 라이트\", \"11/17 차량 세차\"처럼 앞에 날짜를 적으면 마감일로 인식", "할일은 마감 가까운 순으로 정렬, 마감 지남·오늘·마감없음 표시", "음성 추가도 같은 규칙 적용, 끝의 \"추가\"는 빼고 저장", "데이터 저장 형식 3번: 할일에 마감일(due) 추가 (기존 데이터 자동 변환)"] },
   { v: "1.6.0", date: "2026-11-16", notes: ["앱을 열지 않고 항목을 넣는 서버 주소(/api/add) 추가: 음성 비서·단축어에서 보낸 항목이 다음에 앱을 열 때 목록에 들어옴"] },
   { v: "1.5.0", date: "2026-11-16", notes: ["버전 표시를 누르면 작동 원리와 버전 기록이 팝업으로 열림", "JSON 내보내기·가져오기 화면 제거", "Netlify 서버 저장소(Netlify Blobs) 지원: 재배포해도 목록 유지, 연결 링크로 다른 기기와 공유"] },
@@ -312,7 +344,7 @@ const ICON_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-l
    저장 위치: claude.ai 계정 저장소(기기 간 동기화) + 이 기기 localStorage.
    형식을 바꿀 때는 SCHEMA_VERSION 을 올리고 MIGRATIONS 에 변환 함수를 추가하세요.
    모르는 필드와 목록 유형은 지우지 않고 그대로 보존합니다. */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const MIGRATIONS = {
   // 0 → 1: version 필드가 없던 초기 데이터
   0: s => ({ ...s, version: 1 }),
@@ -325,6 +357,12 @@ const MIGRATIONS = {
     return { ...s, lists, stores: Array.isArray(s.stores) ? s.stores : [], version: 2 };
   },
   // 2 → 3: 항목에 due(마감일, "YYYY-MM-DD" 또는 "") 추가
+  // 3 → 4: 반복 할일(repeat) 필드. 없는 항목은 null 로
+  3: s => {
+    const lists = {};
+    for (const [k, l] of Object.entries(s.lists || {})) lists[k] = { ...l, items: (l.items || []).map(i => ({ repeat: null, ...i })) };
+    return { ...s, lists, version: 4 };
+  },
   2: s => {
     const lists = {};
     for (const [k, l] of Object.entries(s.lists || {})) {
@@ -377,7 +415,7 @@ function keepBackup() {
 }
 function loadBackup() { try { const r = localStorage.getItem(STORE_KEY + ":prev"); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
 function loadUI() { try { return JSON.parse(localStorage.getItem(STORE_KEY + ":ui")) || {}; } catch (e) { return {}; } }
-function saveUI() { try { localStorage.setItem(STORE_KEY + ":ui", JSON.stringify({ active, addTarget, storeFilter })); } catch (e) {} }
+function saveUI() { try { localStorage.setItem(STORE_KEY + ":ui", JSON.stringify({ active, addTarget, storeFilter, doneOpen })); } catch (e) {} }
 
 const enabledTypes = () => Object.keys(LIST_TYPES).filter(k => LIST_TYPES[k].enabled);
 let state = normalize(loadLocal() || sampleState());
@@ -463,11 +501,44 @@ function sortOpen(items, type) {
   return [...items].sort((a, b) => (a.due || "9999") < (b.due || "9999") ? -1 : (a.due || "9999") > (b.due || "9999") ? 1 : 0);
 }
 
+/* ===== 반복 할일 =====
+   "매일 약 먹기", "매주 월 분리수거", "매주 월요일 분리수거", "매월 15일 관리비" */
+const WD = "일월화수목금토";
+function takeRepeat(t) {
+  let m = t.match(/^매일\s+(.+)$/);
+  if (m) return { repeat: { type: "daily" }, rest: m[1] };
+  m = t.match(/^매주\s*([일월화수목금토])(?:요일)?\s+(.+)$/);
+  if (m) return { repeat: { type: "weekly", wd: WD.indexOf(m[1]) }, rest: m[2] };
+  m = t.match(/^(?:매월|매달)\s*(\d{1,2})일\s+(.+)$/);
+  if (m && +m[1] >= 1 && +m[1] <= 31) return { repeat: { type: "monthly", day: +m[1] }, rest: m[2] };
+  return { repeat: null, rest: t };
+}
+function repeatLabel(r) {
+  if (!r) return "";
+  return r.type === "daily" ? "매일" : r.type === "weekly" ? `매주 ${WD[r.wd]}` : `매월 ${r.day}일`;
+}
+function monthDay(y, mo, day) { const last = new Date(y, mo + 1, 0).getDate(); return new Date(y, mo, Math.min(day, last)); }
+/* from 이후(포함 여부 inclusive)의 첫 반복 날짜 */
+function nextOccurrence(r, from, inclusive) {
+  let d = new Date(from); d.setHours(0, 0, 0, 0);
+  if (!inclusive) d = addDays(d, 1);
+  if (r.type === "daily") return d;
+  if (r.type === "weekly") { while (d.getDay() !== r.wd) d = addDays(d, 1); return d; }
+  let c = monthDay(d.getFullYear(), d.getMonth(), r.day);
+  if (c < d) c = monthDay(d.getFullYear(), d.getMonth() + 1, r.day);
+  return c;
+}
+
 function parseEntry(raw, type) {
   let t = raw.trim().replace(/\s+/g, " ");
   const cfg = LIST_TYPES[type];
   let store = "", due = "";
-  if (cfg.parseDue) { const r = takeDue(t); due = r.due; t = r.rest.trim(); }
+  let repeat = null;
+  if (cfg.parseDue) {
+    const rp = takeRepeat(t); repeat = rp.repeat; t = rp.rest.trim();
+    const r = takeDue(t); due = r.due; t = r.rest.trim();
+    if (repeat && !due) due = ymd(nextOccurrence(repeat, todayStart(), true));
+  }
   if (cfg.parseStore) {
     const ex = t.match(/^@(\S+)\s+(.+)$/) || t.match(/^([^\s:：]{1,15})\s*[:：]\s*(.+)$/);
     if (ex) { store = ex[1]; t = ex[2].trim(); }
@@ -479,7 +550,7 @@ function parseEntry(raw, type) {
       }
     }
   }
-  if (!cfg.parseQty) return { store, due, text: t, qty: "" };
+  if (!cfg.parseQty) return { store, due, repeat, text: t, qty: "" };
   const m = t.match(/^(.+?)\s+(\d+(?:\.\d+)?\s*[^\s\d]{0,3}|[x×]\s*\d+)$/i);
   if (m && m[1].trim()) return { store, due, text: m[1].trim(), qty: m[2].replace(/\s+/g, "") };
   return { store, due, text: t, qty: "" };
@@ -491,7 +562,7 @@ function rememberStore(store) {
 /* 최근 항목·수정칸에 쓰는 표기: "다이소 우유" (+ 수량) */
 function entryLabel(it, withQty) {
   const known = it.store && knownStores().get(it.store.toLowerCase());
-  const prefix = (it.due ? dueLabelForEdit(it.due) + " " : "") + (it.store ? (known ? it.store + " " : "@" + it.store + " ") : "");
+  const prefix = (it.repeat ? repeatLabel(it.repeat) + " " : (it.due ? dueLabelForEdit(it.due) + " " : "")) + (it.store ? (known ? it.store + " " : "@" + it.store + " ") : "");
   return prefix + it.text + (withQty && it.qty ? " " + it.qty : "");
 }
 
@@ -504,7 +575,7 @@ function commit() {
   saveLocal(); render(); queueRemote();
 }
 function addItem(raw, type = targetType()) {
-  let { store, due, text, qty } = parseEntry(raw, type);
+  let { store, due, repeat, text, qty } = parseEntry(raw, type);
   if (!text) return;
   // 구입처 필터를 걸어 둔 상태면 그 가게로 추가
   if (!store && LIST_TYPES[type].parseStore && storeFilter && storeFilter !== NO_STORE) store = storeFilter;
@@ -512,14 +583,30 @@ function addItem(raw, type = targetType()) {
   const l = list(type);
   const existing = l.items.find(i => i.text === text && (i.store || "") === store && !i.done);
   if (existing) { if (qty) existing.qty = qty; if (due) existing.due = due; }
-  else l.items.unshift({ id: uid(), store, due, text, qty, done: false, createdAt: Date.now() });
+  else l.items.unshift({ id: uid(), store, due, repeat: repeat || null, text, qty, done: false, createdAt: Date.now() });
   const label = entryLabel({ store, text });
   l.recent = l.recent.filter(r => r !== label && r !== text);
   commit();
 }
 function toggle(id, type) {
-  const it = list(type).items.find(i => i.id === id); if (!it) return;
+  const l = list(type); const it = l.items.find(i => i.id === id); if (!it) return;
   it.done = !it.done; it.doneAt = it.done ? Date.now() : undefined;
+  if (it.repeat) {
+    if (it.done) {
+      // 반복 할일: 다음 날짜로 새 항목을 만듦 (지난 날짜는 건너뛰고 오늘 이후로)
+      const base = it.due ? new Date(it.due + "T00:00") : todayStart();
+      let next = nextOccurrence(it.repeat, base, false);
+      while (next < todayStart()) next = nextOccurrence(it.repeat, next, false);
+      const child = { id: uid(), store: it.store || "", due: ymd(next), repeat: it.repeat, text: it.text, qty: it.qty || "", done: false, createdAt: Date.now() };
+      l.items.unshift(child); it.spawnedId = child.id;
+      lastRemoved = null; showToast(`다음: ${dueInfo(child.due).label} ${it.text}`);
+    } else if (it.spawnedId) {
+      // 완료를 되돌리면 방금 만든 다음 회차는 지움 (아직 손대지 않았을 때만)
+      const ci = l.items.findIndex(i => i.id === it.spawnedId && !i.done);
+      if (ci >= 0) l.items.splice(ci, 1);
+      delete it.spawnedId;
+    }
+  }
   commit();
 }
 function rememberRecent(texts, type) {
@@ -550,11 +637,11 @@ function undo() {
 }
 function editItem(id, raw, type) {
   const it = list(type).items.find(i => i.id === id); if (!it) return;
-  const { store, due, text, qty } = parseEntry(raw, type);
+  const { store, due, repeat, text, qty } = parseEntry(raw, type);
   if (!text) { removeItem(id, type); return; }
   rememberStore(store);
   it.store = store; it.text = text; it.qty = qty;
-  if (LIST_TYPES[type].parseDue) it.due = due;
+  if (LIST_TYPES[type].parseDue) { it.due = due; it.repeat = repeat || null; }
   commit();
 }
 
@@ -615,7 +702,7 @@ function render() {
   }
   const shown = filtered(l.items, tType);
   const open = sortOpen(shown.filter(i => !i.done), tType);
-  const done = sortDone(shown);
+  const done = mainDone(shown, tType);
 
   if (l.items.length && !shown.length) {
     main.innerHTML = `<section><div class="empty"><strong></strong><span></span></div></section>`;
@@ -668,6 +755,11 @@ function renderStoreFilter(typeKeys) {
 }
 
 function sortDone(items) { return items.filter(i => i.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)); }
+/* 할일: 완료 후 7일이 지난 항목은 메인에서 숨김 (데이터는 그대로, 완료 기록에서 보임) */
+const ARCHIVE_DAYS = 7;
+function isArchived(it, type) { return LIST_TYPES[type].collapseDone && it.done && it.doneAt && Date.now() - it.doneAt > ARCHIVE_DAYS * 86400000; }
+function mainDone(items, type) { return sortDone(items).filter(i => !isArchived(i, type)); }
+let doneOpen = !!ui.doneOpen;
 
 /* 전체 보기: 목록마다 제목 + 남은 것 + 끝난 것 */
 function groupEl(k) {
@@ -678,7 +770,7 @@ function groupEl(k) {
   const c = document.createElement("span"); c.className = "count"; c.textContent = `남은 ${openCount(k)}`;
   head.append(h, c); g.appendChild(head);
   const shown = filtered(items, k);
-  const open = sortOpen(shown.filter(i => !i.done), k); const done = sortDone(shown);
+  const open = sortOpen(shown.filter(i => !i.done), k); const done = mainDone(shown, k);
   if (!open.length && !done.length) {
     const sec = document.createElement("section");
     const e = document.createElement("div"); e.className = "empty";
@@ -695,15 +787,28 @@ function sectionEl(title, items, clearLabel, type) {
   const head = document.createElement("div"); head.className = "sechead";
   const h = document.createElement("h2"); h.innerHTML = `<span></span> <span class="count"></span>`;
   h.children[0].textContent = title; h.children[1].textContent = items.length;
-  head.appendChild(h);
+  const collapsible = LIST_TYPES[type].collapseDone && items.length && items[0].done;
+  if (collapsible) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "donehead";
+    b.setAttribute("aria-expanded", String(doneOpen));
+    const c = document.createElement("span"); c.className = "chev"; c.textContent = "▸";
+    b.append(c, h); b.onclick = () => { doneOpen = !doneOpen; saveUI(); render(); };
+    head.appendChild(b);
+  } else head.appendChild(h);
   if (clearLabel) {
     const b = document.createElement("button"); b.type = "button"; b.className = "link"; b.textContent = clearLabel;
     b.onclick = () => clearDone(type); head.appendChild(b);
   }
   sec.appendChild(head);
+  if (collapsible && !doneOpen) return sec;
   const ul = document.createElement("ul"); ul.className = "items";
   for (const it of items) ul.appendChild(itemEl(it, type));
   sec.appendChild(ul);
+  if (collapsible) {
+    const n = document.createElement("p"); n.className = "archnote";
+    n.textContent = `완료하고 ${ARCHIVE_DAYS}일이 지나면 여기서 사라지고 완료 기록에 남아요.`;
+    sec.appendChild(n);
+  }
   return sec;
 }
 
@@ -729,9 +834,14 @@ function itemEl(it, type) {
     if (it.store) { const st = document.createElement("span"); st.className = "store"; st.textContent = it.store; body.appendChild(st); }
     const t = document.createElement("span"); t.className = "text"; t.textContent = it.text; body.appendChild(t);
     if (it.qty) { const q = document.createElement("span"); q.className = "qty"; q.textContent = it.qty; body.appendChild(q); }
-    if (LIST_TYPES[type].parseDue) {
+    if (it.repeat) { const rp = document.createElement("span"); rp.className = "rep"; rp.textContent = "↻ " + repeatLabel(it.repeat); body.appendChild(rp); }
+    if (LIST_TYPES[type].parseDue && it.done && it.doneAt) {
+      const d = new Date(it.doneAt);
+      const da = document.createElement("span"); da.className = "doneat"; da.textContent = `${d.getMonth() + 1}/${d.getDate()} 완료`;
+      body.appendChild(da);
+    } else if (LIST_TYPES[type].parseDue) {
       const di = dueInfo(it.due);
-      const dd = document.createElement("span"); dd.className = "due " + (it.done ? "none" : di.cls); dd.textContent = di.label;
+      const dd = document.createElement("span"); dd.className = "due " + di.cls; dd.textContent = di.label;
       body.appendChild(dd);
     }
     body.onclick = () => { editing = it.id; render(); };
@@ -881,6 +991,39 @@ function updateInfo() {
   $("connectBox").hidden = syncMode !== "netlify";
   if (syncMode === "netlify") $("connectLink").value = location.origin + location.pathname + "#k=" + listKey;
 }
+/* ===== 완료 기록 ===== */
+function renderHistory() {
+  const items = Object.keys(LIST_TYPES).filter(k => LIST_TYPES[k].collapseDone)
+    .flatMap(k => state.lists[k].items.filter(i => i.done && i.doneAt));
+  items.sort((a, b) => b.doneAt - a.doneAt);
+  const today = todayStart();
+  const weekStart = addDays(today, -((today.getDay() + 6) % 7)); // 월요일 시작
+  const cnt = from => items.filter(i => i.doneAt >= from.getTime()).length;
+  const stats = [["오늘", cnt(today)], ["이번 주", cnt(weekStart)], ["전체", items.length]];
+  const box = $("histStats"); box.innerHTML = "";
+  for (const [l, n] of stats) { const d = document.createElement("div"); d.className = "stat"; d.innerHTML = "<b></b><span></span>"; d.children[0].textContent = n; d.children[1].textContent = l; box.appendChild(d); }
+  const out = $("histList"); out.innerHTML = "";
+  if (!items.length) { const p = document.createElement("p"); p.className = "hint"; p.textContent = "아직 완료한 할일이 없어요."; out.appendChild(p); return; }
+  let cur = null, ul = null;
+  for (const it of items) {
+    const d = new Date(it.doneAt); const key = ymd(d);
+    if (key !== cur) {
+      cur = key; const sec = document.createElement("div"); sec.className = "hday";
+      const h = document.createElement("h3"); h.textContent = `${d.getMonth() + 1}/${d.getDate()} (${WD[d.getDay()]})`;
+      ul = document.createElement("ul"); sec.append(h, ul); out.appendChild(sec);
+    }
+    const li = document.createElement("li"); const t = document.createElement("span"); t.textContent = it.text; li.appendChild(t);
+    if (it.due && it.due < key) { const l = document.createElement("span"); l.className = "late"; l.textContent = "마감 지나서"; li.appendChild(l); }
+    ul.appendChild(li);
+  }
+}
+function openHist() { renderHistory(); $("histModal").hidden = false; $("histClose").focus(); }
+function closeHist() { $("histModal").hidden = true; $("histBtn").focus(); }
+$("histBtn").addEventListener("click", openHist);
+$("histClose").addEventListener("click", closeHist);
+$("histModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeHist(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("histModal").hidden) closeHist(); });
+
 function openInfo() { updateInfo(); $("infoModal").hidden = false; $("infoClose").focus(); }
 function closeInfo() { $("infoModal").hidden = true; $("verBtn").focus(); }
 $("verBtn").addEventListener("click", openInfo);
