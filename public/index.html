@@ -239,6 +239,7 @@ li.done .qty { color: var(--done); background: transparent; }
       <button class="icon" id="histClose" type="button" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="sheetbody">
+      <div class="filters" id="histFilter" role="group" aria-label="기록 종류"></div>
       <div class="stats" id="histStats"></div>
       <div id="histList"></div>
     </div>
@@ -291,7 +292,9 @@ const LIST_TYPES = {
     parseStore: true,
     openTitle: "살 것",
     doneTitle: "담은 것",
-    clearLabel: "담은 것 비우기",
+    clearLabel: "기록으로 보내기",
+    collapseDone: true,
+    doneWord: "구매",
     emptyTitle: "살 것이 없어요",
     emptyBody: "위 입력칸에 적어 두고, 장 볼 때 담으면서 체크하세요.",
     shortEmpty: "살 것이 없어요",
@@ -307,8 +310,9 @@ const LIST_TYPES = {
     parseDue: true,
     openTitle: "할 일",
     doneTitle: "완료",
-    clearLabel: "",
+    clearLabel: "기록으로 보내기",
     collapseDone: true,
+    doneWord: "완료",
     emptyTitle: "할 일이 없어요",
     emptyBody: "위 입력칸에 할 일을 적어 보세요.",
     shortEmpty: "할 일이 없어요",
@@ -319,8 +323,9 @@ const LIST_TYPES = {
 /* ===== 앱 버전 =====
    앱을 고칠 때마다 APP_VERSION 을 올리고 CHANGELOG 맨 위에 한 줄 추가합니다.
    앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
-const APP_VERSION = "1.8.0";
+const APP_VERSION = "1.9.0";
 const CHANGELOG = [
+  { v: "1.9.0", date: "2026-11-16", notes: ["장바구니도 할일과 같은 방식: 담은 것은 접힌 칸에 구매 날짜와 함께, 7일 지나면 기록으로", "\"담은 것 비우기\"는 지우지 않고 \"기록으로 보내기\"로 변경", "완료 기록에 장바구니 구매 내역 포함, 전체·장바구니·할일로 골라 보기"] },
   { v: "1.8.0", date: "2026-11-16", notes: ["할일 완료는 접힌 \"완료\" 칸으로 내려가고 완료 날짜 표시, 다시 눌러 되돌리기", "완료 후 7일 지난 할일은 메인에서 숨기고 완료 기록으로 (데이터는 그대로)", "완료 기록 팝업: 날짜별 목록, 오늘·이번 주 완료 개수", "반복 할일: 매일 / 매주 월 / 매월 15일 — 완료하면 다음 날짜로 새로 생김", "장바구니 \"담은 것 비우기\"", "데이터 저장 형식 4번: 반복(repeat) 추가"] },
   { v: "1.7.0", date: "2026-11-16", notes: ["할일 마감일: \"오늘 트럭 라이트\", \"11/17 차량 세차\"처럼 앞에 날짜를 적으면 마감일로 인식", "할일은 마감 가까운 순으로 정렬, 마감 지남·오늘·마감없음 표시", "음성 추가도 같은 규칙 적용, 끝의 \"추가\"는 빼고 저장", "데이터 저장 형식 3번: 할일에 마감일(due) 추가 (기존 데이터 자동 변환)"] },
   { v: "1.6.0", date: "2026-11-16", notes: ["앱을 열지 않고 항목을 넣는 서버 주소(/api/add) 추가: 음성 비서·단축어에서 보낸 항목이 다음에 앱을 열 때 목록에 들어옴"] },
@@ -591,6 +596,7 @@ function addItem(raw, type = targetType()) {
 function toggle(id, type) {
   const l = list(type); const it = l.items.find(i => i.id === id); if (!it) return;
   it.done = !it.done; it.doneAt = it.done ? Date.now() : undefined;
+  if (!it.done) delete it.archived;
   if (it.repeat) {
     if (it.done) {
       // 반복 할일: 다음 날짜로 새 항목을 만듦 (지난 날짜는 건너뛰고 오늘 이후로)
@@ -599,7 +605,7 @@ function toggle(id, type) {
       while (next < todayStart()) next = nextOccurrence(it.repeat, next, false);
       const child = { id: uid(), store: it.store || "", due: ymd(next), repeat: it.repeat, text: it.text, qty: it.qty || "", done: false, createdAt: Date.now() };
       l.items.unshift(child); it.spawnedId = child.id;
-      lastRemoved = null; showToast(`다음: ${dueInfo(child.due).label} ${it.text}`);
+      lastRemoved = null; lastArchived = null; showToast(`다음: ${dueInfo(child.due).label} ${it.text}`);
     } else if (it.spawnedId) {
       // 완료를 되돌리면 방금 만든 다음 회차는 지움 (아직 손대지 않았을 때만)
       const ci = l.items.findIndex(i => i.id === it.spawnedId && !i.done);
@@ -616,19 +622,30 @@ function rememberRecent(texts, type) {
 function removeItem(id, type) {
   const l = list(type); const idx = l.items.findIndex(i => i.id === id); if (idx < 0) return;
   const [it] = l.items.splice(idx, 1);
+  lastArchived = null;
   lastRemoved = { type, items: [[idx, it]], recent: l.recent.slice() };
   if (LIST_TYPES[type].showRecent) rememberRecent([entryLabel(it)], type);
   commit(); showToast(`'${it.text}' 삭제됨`);
 }
+/* 끝난 항목을 지우지 않고 바로 기록으로 보냄 (메인에서만 숨김) */
 function clearDone(type) {
-  const l = list(type); const removed = [];
-  l.items = l.items.filter((it, idx) => { if (it.done) { removed.push([idx, it]); return false; } return true; });
-  if (!removed.length) return;
-  lastRemoved = { type, items: removed, recent: l.recent.slice() };
-  if (LIST_TYPES[type].showRecent) rememberRecent(removed.map(r => entryLabel(r[1])), type);
-  commit(); showToast(`${removed.length}개 지움`);
+  const l = list(type);
+  const moved = l.items.filter(it => it.done && !isArchived(it, type));
+  if (!moved.length) return;
+  const recentBefore = l.recent.slice();
+  for (const it of moved) it.archived = true;
+  if (LIST_TYPES[type].showRecent) rememberRecent(moved.map(i => entryLabel(i)), type);
+  lastArchived = { type, ids: moved.map(i => i.id), recent: recentBefore }; lastRemoved = null;
+  commit(); showToast(`${moved.length}개를 기록으로 보냈어요`);
 }
+let lastArchived = null;
 function undo() {
+  if (lastArchived) {
+    const l = state.lists[lastArchived.type];
+    for (const it of l.items) if (lastArchived.ids.includes(it.id)) delete it.archived;
+    l.recent = lastArchived.recent; lastArchived = null;
+    hideToast(); commit(); return;
+  }
   if (!lastRemoved) return;
   const l = state.lists[lastRemoved.type];
   for (const [idx, it] of lastRemoved.items) l.items.splice(Math.min(idx, l.items.length), 0, it);
@@ -757,7 +774,11 @@ function renderStoreFilter(typeKeys) {
 function sortDone(items) { return items.filter(i => i.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)); }
 /* 할일: 완료 후 7일이 지난 항목은 메인에서 숨김 (데이터는 그대로, 완료 기록에서 보임) */
 const ARCHIVE_DAYS = 7;
-function isArchived(it, type) { return LIST_TYPES[type].collapseDone && it.done && it.doneAt && Date.now() - it.doneAt > ARCHIVE_DAYS * 86400000; }
+function isArchived(it, type) {
+  if (!it.done) return false;
+  if (it.archived) return true;
+  return !!(LIST_TYPES[type].collapseDone && it.doneAt && Date.now() - it.doneAt > ARCHIVE_DAYS * 86400000);
+}
 function mainDone(items, type) { return sortDone(items).filter(i => !isArchived(i, type)); }
 let doneOpen = !!ui.doneOpen;
 
@@ -806,7 +827,7 @@ function sectionEl(title, items, clearLabel, type) {
   sec.appendChild(ul);
   if (collapsible) {
     const n = document.createElement("p"); n.className = "archnote";
-    n.textContent = `완료하고 ${ARCHIVE_DAYS}일이 지나면 여기서 사라지고 완료 기록에 남아요.`;
+    n.textContent = `${LIST_TYPES[type].doneWord}하고 ${ARCHIVE_DAYS}일이 지나면 여기서 사라지고 완료 기록에 남아요.`;
     sec.appendChild(n);
   }
   return sec;
@@ -835,9 +856,9 @@ function itemEl(it, type) {
     const t = document.createElement("span"); t.className = "text"; t.textContent = it.text; body.appendChild(t);
     if (it.qty) { const q = document.createElement("span"); q.className = "qty"; q.textContent = it.qty; body.appendChild(q); }
     if (it.repeat) { const rp = document.createElement("span"); rp.className = "rep"; rp.textContent = "↻ " + repeatLabel(it.repeat); body.appendChild(rp); }
-    if (LIST_TYPES[type].parseDue && it.done && it.doneAt) {
+    if (LIST_TYPES[type].collapseDone && it.done && it.doneAt) {
       const d = new Date(it.doneAt);
-      const da = document.createElement("span"); da.className = "doneat"; da.textContent = `${d.getMonth() + 1}/${d.getDate()} 완료`;
+      const da = document.createElement("span"); da.className = "doneat"; da.textContent = `${d.getMonth() + 1}/${d.getDate()} ${LIST_TYPES[type].doneWord}`;
       body.appendChild(da);
     } else if (LIST_TYPES[type].parseDue) {
       const di = dueInfo(it.due);
@@ -856,7 +877,7 @@ function itemEl(it, type) {
 
 let toastTimer;
 function showToast(msg) {
-  $("toastMsg").textContent = msg; $("toast").hidden = false; $("toastUndo").hidden = !lastRemoved;
+  $("toastMsg").textContent = msg; $("toast").hidden = false; $("toastUndo").hidden = !(lastRemoved || lastArchived);
   clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, 5000);
 }
 function hideToast() { $("toast").hidden = true; }
@@ -992,9 +1013,18 @@ function updateInfo() {
   if (syncMode === "netlify") $("connectLink").value = location.origin + location.pathname + "#k=" + listKey;
 }
 /* ===== 완료 기록 ===== */
+let histFilter = "";
 function renderHistory() {
-  const items = Object.keys(LIST_TYPES).filter(k => LIST_TYPES[k].collapseDone)
-    .flatMap(k => state.lists[k].items.filter(i => i.done && i.doneAt));
+  const kinds = enabledTypes().filter(k => LIST_TYPES[k].collapseDone);
+  const fb = $("histFilter"); fb.innerHTML = "";
+  for (const [v, name] of [["", "전체"], ...kinds.map(k => [k, LIST_TYPES[k].label])]) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "fchip"; b.textContent = name;
+    b.setAttribute("aria-pressed", String(histFilter === v));
+    b.onclick = () => { histFilter = v; renderHistory(); };
+    fb.appendChild(b);
+  }
+  const items = kinds.filter(k => !histFilter || k === histFilter)
+    .flatMap(k => state.lists[k].items.filter(i => i.done && i.doneAt).map(i => ({ ...i, _type: k })));
   items.sort((a, b) => b.doneAt - a.doneAt);
   const today = todayStart();
   const weekStart = addDays(today, -((today.getDay() + 6) % 7)); // 월요일 시작
@@ -1003,7 +1033,7 @@ function renderHistory() {
   const box = $("histStats"); box.innerHTML = "";
   for (const [l, n] of stats) { const d = document.createElement("div"); d.className = "stat"; d.innerHTML = "<b></b><span></span>"; d.children[0].textContent = n; d.children[1].textContent = l; box.appendChild(d); }
   const out = $("histList"); out.innerHTML = "";
-  if (!items.length) { const p = document.createElement("p"); p.className = "hint"; p.textContent = "아직 완료한 할일이 없어요."; out.appendChild(p); return; }
+  if (!items.length) { const p = document.createElement("p"); p.className = "hint"; p.textContent = "아직 끝낸 항목이 없어요."; out.appendChild(p); return; }
   let cur = null, ul = null;
   for (const it of items) {
     const d = new Date(it.doneAt); const key = ymd(d);
@@ -1012,7 +1042,10 @@ function renderHistory() {
       const h = document.createElement("h3"); h.textContent = `${d.getMonth() + 1}/${d.getDate()} (${WD[d.getDay()]})`;
       ul = document.createElement("ul"); sec.append(h, ul); out.appendChild(sec);
     }
-    const li = document.createElement("li"); const t = document.createElement("span"); t.textContent = it.text; li.appendChild(t);
+    const li = document.createElement("li");
+    if (!histFilter) { const k = document.createElement("span"); k.className = "store"; k.textContent = LIST_TYPES[it._type].label; li.appendChild(k); }
+    if (it.store) { const st = document.createElement("span"); st.className = "store"; st.textContent = it.store; li.appendChild(st); }
+    const t = document.createElement("span"); t.textContent = it.text + (it.qty ? " " + it.qty : ""); li.appendChild(t);
     if (it.due && it.due < key) { const l = document.createElement("span"); l.className = "late"; l.textContent = "마감 지나서"; li.appendChild(l); }
     ul.appendChild(li);
   }
@@ -1052,7 +1085,7 @@ function processInbox() {
   state.inboxDone = [...done, ...todo.map(e => e.id)].slice(-200);
   // 음성 끝에 붙는 "추가", "추가해 줘" 등은 빼고 저장
   for (const e of todo) addItem(String(e.text || "").replace(/^할\s*일\s*(?:에|:)?\s+/, "").replace(/\s*(?:을|를)?\s*추가\s*(?:해\s*줘|해\s*주세요|해|하기)?[.!]?$/, ""), LIST_TYPES[e.list] ? e.list : "shopping");
-  lastRemoved = null; showToast(`음성으로 ${todo.length}개 추가됨`);
+  lastRemoved = null; lastArchived = null; showToast(`음성으로 ${todo.length}개 추가됨`);
 }
 
 function renderAbout() {
