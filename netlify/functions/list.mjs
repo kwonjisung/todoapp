@@ -1,8 +1,9 @@
 // 장바구니 메모 데이터 저장소 (Netlify Blobs)
 // 앱 코드(public/index.html)와 분리된 JSON 문서로 저장되므로 재배포해도 지워지지 않습니다.
 // GET  /api/list?k=<열쇠>  → { data }   (없으면 404)
-// PUT  /api/list?k=<열쇠>  body: 앱 상태 JSON → { ok, updatedAt }
+// PUT  /api/list?k=<열쇠>  body: 앱 상태 JSON → { ok, updatedAt, data }  (서버에 있던 것과 항목 단위로 합친 결과)
 import { getStore } from "@netlify/blobs";
+import { mergeState } from "../lib/merge.mjs";
 
 const KEY_RE = /^[A-Za-z0-9_-]{24,64}$/;
 const MAX_BYTES = 512 * 1024;
@@ -35,13 +36,21 @@ export default async (req) => {
     if (!data || typeof data !== "object" || !data.lists || typeof data.lists !== "object") {
       return json({ error: "bad_shape" }, 400);
     }
-    data.savedAt = new Date().toISOString();
-    // 음성 등으로 서버에 바로 들어온 항목(inbox)은 앱이 처리했다고 알려 준 것(inboxDone)만 지움
-    const prev = await store.get(blobKey, { type: "json" });
-    const done = new Set(Array.isArray(data.inboxDone) ? data.inboxDone : []);
-    data.inbox = ((prev && Array.isArray(prev.inbox)) ? prev.inbox : []).filter(e => e && !done.has(e.id));
-    await store.setJSON(blobKey, data);
-    return json({ ok: true, updatedAt: data.updatedAt || null });
+    // 다른 기기가 그사이 저장했어도 덮어쓰지 않게: 읽고 → 합치고 → "읽은 그대로일 때만" 쓰기, 겹치면 다시
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const prevEntry = await store.getWithMetadata(blobKey, { type: "json" });
+      const prev = prevEntry ? prevEntry.data : null;
+      // 형식 5번 이상(항목별 수정 시각·지운 기록이 있는 앱)만 합침. 예전 앱은 예전처럼 통째로 저장
+      let next = prev && Number(data.version) >= 5 ? mergeState(prev, data) : { ...data };
+      next.savedAt = new Date().toISOString();
+      next.rev = ((prev && Number(prev.rev)) || 0) + 1; // 저장할 때마다 +1: 앱이 "바뀌었는지"를 시계와 상관없이 알 수 있게
+      // 음성 등으로 서버에 바로 들어온 항목(inbox)은 앱이 처리했다고 알려 준 것(inboxDone)만 지움
+      const done = new Set(Array.isArray(next.inboxDone) ? next.inboxDone : []);
+      next.inbox = ((prev && Array.isArray(prev.inbox)) ? prev.inbox : []).filter(e => e && !done.has(e.id));
+      const res = await store.setJSON(blobKey, next, prevEntry ? { onlyIfMatch: prevEntry.etag } : { onlyIfNew: true });
+      if (!res || res.modified !== false) return json({ ok: true, updatedAt: next.updatedAt || null, data: next });
+    }
+    return json({ error: "conflict" }, 409);
   }
 
   return json({ error: "method_not_allowed" }, 405);

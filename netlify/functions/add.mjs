@@ -31,15 +31,21 @@ export default async (req) => {
 
   const store = getStore({ name: "basket-lists", consistency: "strong", region: "us-east-2" });
   const blobKey = `lists/${k}`;
-  const data = (await store.get(blobKey, { type: "json" })) || { version: 2, lists: {}, stores: [] };
   const entries = text.split(/\s*,\s*|\s+그리고\s+/).filter(Boolean).slice(0, 20); // "우유, 계란" 여러 개 한 번에
-  data.inbox = Array.isArray(data.inbox) ? data.inbox : [];
-  for (const t of entries) {
-    data.inbox.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), text: t, list, at: Date.now() });
+  // 앱이 동시에 저장해도 서로 덮어쓰지 않게 "읽은 그대로일 때만" 쓰기, 겹치면 다시
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const prev = await store.getWithMetadata(blobKey, { type: "json" });
+    const data = (prev && prev.data) || { version: 2, lists: {}, stores: [] };
+    data.inbox = Array.isArray(data.inbox) ? data.inbox : [];
+    for (const t of entries) {
+      data.inbox.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), text: t, list, at: Date.now() });
+    }
+    data.updatedAt = Date.now();
+    data.rev = (Number(data.rev) || 0) + 1;
+    const res = await store.setJSON(blobKey, data, prev ? { onlyIfMatch: prev.etag } : { onlyIfNew: true });
+    if (!res || res.modified !== false) return json({ ok: true, added: entries, list });
   }
-  data.updatedAt = Date.now();
-  await store.setJSON(blobKey, data);
-  return json({ ok: true, added: entries, list });
+  return json({ error: "conflict" }, 409);
 };
 
 export const config = { path: "/api/add" };

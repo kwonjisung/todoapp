@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f3f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121814" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="장바구니">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -292,6 +299,11 @@ body[data-layout="side"] .add, body[data-layout="board"] .add { max-width: 720px
         <div class="keyrow"><input id="connectLink" type="text" readonly aria-label="연결 링크"><button class="btn small" id="copyLink" type="button">복사</button></div>
         <p class="hint" id="copyStatus" aria-live="polite"></p>
       </section>
+      <section class="prose" id="installBox" hidden>
+        <h3>홈 화면에 설치</h3>
+        <p id="installText">홈 화면에 앱으로 추가하면 주소창 없이 바로 열리고, 인터넷이 안 될 때도 열려요.</p>
+        <div><button class="btn small" id="installBtn" type="button" hidden>앱으로 설치</button></div>
+      </section>
       <section class="prose">
         <h3>작동 원리</h3>
         <p>이 앱은 화면과 기능을 담은 <b>앱 코드</b>와, 내가 적은 목록을 담은 <b>데이터</b>(JSON)로 나뉘어 있어요. 앱을 업데이트하면 앱 코드만 바뀌고 데이터는 그대로 남아요.</p>
@@ -299,6 +311,8 @@ body[data-layout="side"] .add, body[data-layout="board"] .add { max-width: 720px
           <li><b>저장 위치</b>: <span id="storeWhere">이 기기의 브라우저 저장소</span></li>
           <li><b>이 기기에도 한 벌</b>: 같은 내용을 기기에도 저장해 둬서 인터넷이 잠깐 끊겨도 바로 열려요.</li>
           <li><b>저장 순서</b>: 추가하거나 체크하면 화면과 기기에 바로 반영되고, 잠시 뒤 서버로 올라가요. 오른쪽 위 표시가 "동기화됨"이면 올라간 거예요.</li>
+          <li><b>두 기기에서 동시에 고쳐도 안전</b>: 항목마다 고친 시각을 기억해서, 휴대폰과 PC에서 거의 동시에 바꿔도 서로의 변경을 덮어쓰지 않고 합쳐요. 지운 항목도 다른 기기에서 다시 살아나지 않아요.</li>
+          <li><b>인터넷이 끊겨도</b>: 매장 안처럼 신호가 약해도 앱이 열리고, 적거나 체크한 건 기기에 저장됐다가 연결되면 바로 올라가요.</li>
           <li><b>업데이트해도 안전</b>: 데이터에 저장 형식 번호가 붙어 있어서, 앱이 형식을 바꾸면 열 때 자동으로 변환해요. 모르는 항목은 지우지 않아요.</li>
           <li><b>구입처 인식</b>: 맨 앞 단어가 아는 가게(다이소, 이마트, 쿠팡 등이나 한 번 쓴 가게)일 때만 구입처로 읽어요. 처음 쓰는 가게는 "@동네마트 두부"처럼 적으면 기억해요.</li>
         </ul>
@@ -357,8 +371,9 @@ const LIST_TYPES = {
 /* ===== 앱 버전 =====
    앱을 고칠 때마다 APP_VERSION 을 올리고 CHANGELOG 맨 위에 한 줄 추가합니다.
    앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
-const APP_VERSION = "1.10.0";
+const APP_VERSION = "1.11.0";
 const CHANGELOG = [
+  { v: "1.11.0", date: "2026-11-24", notes: ["두 기기에서 거의 동시에 고쳐도 서로 덮어쓰지 않게 항목 단위로 합쳐서 저장 (지운 항목이 되살아나지 않음)", "인터넷 없이 앱을 열었다가 연결되면 자동으로 다시 연결해 올림 (전에는 앱을 다시 열어야 했음)", "홈 화면에 앱으로 설치 가능, 오프라인에서도 열림", "설치한 앱 아이콘에 오늘·지난 할일 개수 배지", "데이터 저장 형식 5번: 항목별 고친 시각(mt), 지운 항목 기록(deleted)"] },
   { v: "1.10.0", date: "2026-11-23", notes: ["큰 화면(900px 이상) 보기 선택: 좁게 / 나란히 / 보드", "나란히: 화면을 넓게 쓰고 남은 것과 완료를 옆에 나란히, 전체 탭은 장바구니와 할일을 옆으로", "보드: 장바구니는 구입처별, 할일은 마감(지남·오늘·이번 주·나중·마감없음)별 칸으로 펼쳐 보기"] },
   { v: "1.9.0", date: "2026-11-16", notes: ["장바구니도 할일과 같은 방식: 담은 것은 접힌 칸에 구매 날짜와 함께, 7일 지나면 기록으로", "\"담은 것 비우기\"는 지우지 않고 \"기록으로 보내기\"로 변경", "완료 기록에 장바구니 구매 내역 포함, 전체·장바구니·할일로 골라 보기"] },
   { v: "1.8.0", date: "2026-11-16", notes: ["할일 완료는 접힌 \"완료\" 칸으로 내려가고 완료 날짜 표시, 다시 눌러 되돌리기", "완료 후 7일 지난 할일은 메인에서 숨기고 완료 기록으로 (데이터는 그대로)", "완료 기록 팝업: 날짜별 목록, 오늘·이번 주 완료 개수", "반복 할일: 매일 / 매주 월 / 매월 15일 — 완료하면 다음 날짜로 새로 생김", "장바구니 \"담은 것 비우기\"", "데이터 저장 형식 4번: 반복(repeat) 추가"] },
@@ -384,7 +399,7 @@ const ICON_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-l
    저장 위치: claude.ai 계정 저장소(기기 간 동기화) + 이 기기 localStorage.
    형식을 바꿀 때는 SCHEMA_VERSION 을 올리고 MIGRATIONS 에 변환 함수를 추가하세요.
    모르는 필드와 목록 유형은 지우지 않고 그대로 보존합니다. */
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 const MIGRATIONS = {
   // 0 → 1: version 필드가 없던 초기 데이터
   0: s => ({ ...s, version: 1 }),
@@ -410,6 +425,12 @@ const MIGRATIONS = {
     }
     return { ...s, lists, version: 3 };
   },
+  // 4 → 5: 기기 간 합치기용. 항목별 마지막 수정 시각 mt, 지운 항목 기록 deleted({id: 지운 시각})
+  4: s => {
+    const lists = {};
+    for (const [k, l] of Object.entries(s.lists || {})) lists[k] = { ...l, items: (l.items || []).map(i => ({ mt: i.doneAt || i.createdAt || 0, ...i })) };
+    return { ...s, lists, deleted: s.deleted && typeof s.deleted === "object" ? s.deleted : {}, version: 5 };
+  },
 };
 function migrate(s) {
   if (!s || typeof s !== "object") return null;
@@ -421,7 +442,7 @@ function migrate(s) {
 function blankState() {
   const lists = {};
   for (const k of Object.keys(LIST_TYPES)) lists[k] = { items: [], recent: [] };
-  return { version: SCHEMA_VERSION, lists, stores: [] };
+  return { version: SCHEMA_VERSION, lists, stores: [], deleted: {} };
 }
 function normalize(s) {
   s = migrate(s);
@@ -430,6 +451,7 @@ function normalize(s) {
     // 앱이 모르는 최상위 필드도 버리지 않고 보존
     for (const [k, v] of Object.entries(s)) if (!(k in out) && k !== "sample") out[k] = v;
     if (Array.isArray(s.stores)) out.stores = s.stores.filter(x => typeof x === "string" && x);
+    if (s.deleted && typeof s.deleted === "object") out.deleted = { ...s.deleted };
   }
   if (s && Number(s.version) > SCHEMA_VERSION) out.version = Number(s.version); // 더 새 형식이면 버전을 낮추지 않음
   if (s && s.updatedAt) out.updatedAt = s.updatedAt;
@@ -462,6 +484,8 @@ let state = normalize(loadLocal() || sampleState());
 /* "all" 은 모든 목록을 한 화면에 모아 보는 가상 탭 */
 const ui = loadUI();
 let active = ui.active;
+const qTab = new URLSearchParams(location.search).get("tab"); // 홈 화면 아이콘 바로가기(?tab=todo)
+if (qTab) active = qTab;
 if (active !== "all" && !enabledTypes().includes(active)) active = enabledTypes()[0];
 let addTarget = enabledTypes().includes(ui.addTarget) ? ui.addTarget : enabledTypes()[0];
 const NO_STORE = "__none";
@@ -609,6 +633,8 @@ function entryLabel(it, withQty) {
 /* ===== 변경 ===== */
 let lastRemoved = null;
 function list(t = targetType()) { return state.lists[t]; }
+/* 항목을 고칠 때마다 시각을 남겨서, 다른 기기와 합칠 때 더 나중에 고친 쪽을 고름 */
+function touch(it) { it.mt = Math.max(Date.now(), (it.mt || 0) + 1); return it; }
 function commit() {
   if (state.sample) delete state.sample;
   state.updatedAt = Date.now();
@@ -622,15 +648,15 @@ function addItem(raw, type = targetType()) {
   rememberStore(store);
   const l = list(type);
   const existing = l.items.find(i => i.text === text && (i.store || "") === store && !i.done);
-  if (existing) { if (qty) existing.qty = qty; if (due) existing.due = due; }
-  else l.items.unshift({ id: uid(), store, due, repeat: repeat || null, text, qty, done: false, createdAt: Date.now() });
+  if (existing) { if (qty) existing.qty = qty; if (due) existing.due = due; touch(existing); }
+  else l.items.unshift({ id: uid(), store, due, repeat: repeat || null, text, qty, done: false, createdAt: Date.now(), mt: Date.now() });
   const label = entryLabel({ store, text });
   l.recent = l.recent.filter(r => r !== label && r !== text);
   commit();
 }
 function toggle(id, type) {
   const l = list(type); const it = l.items.find(i => i.id === id); if (!it) return;
-  it.done = !it.done; it.doneAt = it.done ? Date.now() : undefined;
+  it.done = !it.done; it.doneAt = it.done ? Date.now() : undefined; touch(it);
   if (!it.done) delete it.archived;
   if (it.repeat) {
     if (it.done) {
@@ -638,13 +664,13 @@ function toggle(id, type) {
       const base = it.due ? new Date(it.due + "T00:00") : todayStart();
       let next = nextOccurrence(it.repeat, base, false);
       while (next < todayStart()) next = nextOccurrence(it.repeat, next, false);
-      const child = { id: uid(), store: it.store || "", due: ymd(next), repeat: it.repeat, text: it.text, qty: it.qty || "", done: false, createdAt: Date.now() };
+      const child = { id: uid(), store: it.store || "", due: ymd(next), repeat: it.repeat, text: it.text, qty: it.qty || "", done: false, createdAt: Date.now(), mt: Date.now() };
       l.items.unshift(child); it.spawnedId = child.id;
       lastRemoved = null; lastArchived = null; showToast(`다음: ${dueInfo(child.due).label} ${it.text}`);
     } else if (it.spawnedId) {
       // 완료를 되돌리면 방금 만든 다음 회차는 지움 (아직 손대지 않았을 때만)
       const ci = l.items.findIndex(i => i.id === it.spawnedId && !i.done);
-      if (ci >= 0) l.items.splice(ci, 1);
+      if (ci >= 0) { const [gone] = l.items.splice(ci, 1); markDeleted(gone.id); }
       delete it.spawnedId;
     }
   }
@@ -657,6 +683,7 @@ function rememberRecent(texts, type) {
 function removeItem(id, type) {
   const l = list(type); const idx = l.items.findIndex(i => i.id === id); if (idx < 0) return;
   const [it] = l.items.splice(idx, 1);
+  markDeleted(it.id);
   lastArchived = null;
   lastRemoved = { type, items: [[idx, it]], recent: l.recent.slice() };
   if (LIST_TYPES[type].showRecent) rememberRecent([entryLabel(it)], type);
@@ -668,22 +695,23 @@ function clearDone(type) {
   const moved = l.items.filter(it => it.done && !isArchived(it, type));
   if (!moved.length) return;
   const recentBefore = l.recent.slice();
-  for (const it of moved) it.archived = true;
+  for (const it of moved) { it.archived = true; touch(it); }
   if (LIST_TYPES[type].showRecent) rememberRecent(moved.map(i => entryLabel(i)), type);
   lastArchived = { type, ids: moved.map(i => i.id), recent: recentBefore }; lastRemoved = null;
   commit(); showToast(`${moved.length}개를 기록으로 보냈어요`);
 }
 let lastArchived = null;
+function markDeleted(id) { (state.deleted || (state.deleted = {}))[id] = Date.now(); }
 function undo() {
   if (lastArchived) {
     const l = state.lists[lastArchived.type];
-    for (const it of l.items) if (lastArchived.ids.includes(it.id)) delete it.archived;
+    for (const it of l.items) if (lastArchived.ids.includes(it.id)) { delete it.archived; touch(it); }
     l.recent = lastArchived.recent; lastArchived = null;
     hideToast(); commit(); return;
   }
   if (!lastRemoved) return;
   const l = state.lists[lastRemoved.type];
-  for (const [idx, it] of lastRemoved.items) l.items.splice(Math.min(idx, l.items.length), 0, it);
+  for (const [idx, it] of lastRemoved.items) { if (state.deleted) delete state.deleted[it.id]; touch(it); l.items.splice(Math.min(idx, l.items.length), 0, it); }
   l.recent = lastRemoved.recent; lastRemoved = null;
   hideToast(); commit();
 }
@@ -692,7 +720,7 @@ function editItem(id, raw, type) {
   const { store, due, repeat, text, qty } = parseEntry(raw, type);
   if (!text) { removeItem(id, type); return; }
   rememberStore(store);
-  it.store = store; it.text = text; it.qty = qty;
+  it.store = store; it.text = text; it.qty = qty; touch(it);
   if (LIST_TYPES[type].parseDue) { it.due = due; it.repeat = repeat || null; }
   commit();
 }
@@ -704,6 +732,7 @@ let editing = null;
 const openCount = k => state.lists[k].items.filter(i => !i.done).length;
 
 function render() {
+  updateBadge();
   document.body.dataset.layout = effLayout(); renderLayoutSwitch();
   const types = enabledTypes(); const isAll = active === "all";
   const tType = targetType(); const cfg = LIST_TYPES[tType]; const l = list(tType);
@@ -1002,19 +1031,27 @@ function setSync(st, text) { const el = $("sync"); el.dataset.state = st; el.tex
    - 그 밖(파일로 열기): 이 기기 localStorage 만. */
 let remoteSave = null, remoteReady = false, writing = false, dirty = false, writeTimer = null;
 let syncMode = "local";
+const offlineText = () => navigator.onLine === false ? "오프라인 · 연결되면 올라가요" : "이 기기에 저장 (서버 연결 안 됨)";
 function queueRemote() {
   if (!remoteSave || !remoteReady) return;
   dirty = true; setSync("saving", "저장 중…");
   clearTimeout(writeTimer); writeTimer = setTimeout(flushRemote, 600);
 }
+let retryTimer = null;
 async function flushRemote() {
-  if (writing || !dirty) return;
-  writing = true; dirty = false;
-  try { await remoteSave(JSON.parse(JSON.stringify(state))); setSync("synced", "동기화됨"); }
-  catch (e) { setSync("local", "이 기기에 저장 (서버 저장 실패)"); dirty = true; setTimeout(flushRemote, 15000); }
+  if (writing || !dirty || !remoteSave) return;
+  writing = true; dirty = false; clearTimeout(retryTimer);
+  let merged = null, ok = true;
+  try { merged = await remoteSave(JSON.parse(JSON.stringify(state))); setSync("synced", "동기화됨"); }
+  catch (e) { ok = false; setSync("local", offlineText()); dirty = true; retryTimer = setTimeout(flushRemote, 15000); }
   writing = false;
-  if (dirty) flushRemote();
+  // 서버가 다른 기기 변경과 합친 결과를 돌려주면 내 화면에도 합침 (그사이 고친 것은 수정 시각으로 지켜짐)
+  if (merged) applyRemote(merged);
+  // 실패했을 때는 바로 다시 보내지 않음 (오프라인에서 끝없이 재시도하던 문제) — 15초 뒤나 다시 연결될 때
+  if (dirty && ok) flushRemote();
 }
+window.addEventListener("online", () => { if (remoteSave && remoteReady) { if (dirty) flushRemote(); else if (pullRemote) pullRemote(); } });
+window.addEventListener("offline", () => { if (syncMode !== "local") setSync("local", offlineText()); });
 async function initRemote() {
   if (window.claude && typeof window.claude.use === "function") return initClaude();
   if (/^https?:$/.test(location.protocol)) return initNetlify();
@@ -1026,7 +1063,7 @@ async function initClaude() {
     const id = await user.id();
     if (!id) return;
     const ref = db.doc(`data/users/${id}/app`);
-    remoteSave = d => ref.set(d); syncMode = "claude"; updateInfo();
+    remoteSave = async d => { await ref.set(d); return null; }; syncMode = "claude"; updateInfo();
     setSync("saving", "불러오는 중…");
     const timer = setTimeout(() => { if (!remoteReady) setSync("local", "이 기기에 저장 (연결 대기)"); }, 10000);
     ref.onSnapshot(snap => {
@@ -1046,7 +1083,9 @@ async function initClaude() {
 
 /* --- Netlify: 기기별 열쇠(무작위 문자열)로 내 목록을 찾음. 다른 기기는 연결 링크(#k=열쇠)로 같은 열쇠를 받음 --- */
 const KEY_RE = /^[A-Za-z0-9_-]{24,64}$/;
-let listKey = null, lastRemoteAt = 0;
+let listKey = null, lastRemoteAt = 0, pullRemote = null;
+/* 서버가 저장할 때마다 1씩 올리는 번호(rev). 없으면(예전 서버 데이터) updatedAt 으로 비교 */
+const remoteStamp = d => d ? (d.rev != null ? "r" + d.rev : "t" + (d.updatedAt || 0)) : "";
 function randomKey() {
   const a = new Uint8Array(24); crypto.getRandomValues(a);
   return btoa(String.fromCharCode(...a)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -1065,39 +1104,63 @@ async function initNetlify() {
   try { listKey = localStorage.getItem(STORE_KEY + ":key"); } catch (e) {}
   let adopted = false;
   if (m && m[1] !== listKey) { listKey = m[1]; adopted = true; }
+  try { if (!m && localStorage.getItem(STORE_KEY + ":adopt")) adopted = true; } catch (e) {} // 오프라인에서 연결 링크를 연 뒤 다시 열었을 때
   if (m) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
   if (!listKey || !KEY_RE.test(listKey)) listKey = randomKey();
+  connectNetlify(adopted);
+}
+/* 서버에 처음 연결. 인터넷이 안 되면 열쇠는 그대로 두고, 연결되면(또는 20초 뒤) 다시 시도 */
+async function connectNetlify(adopted) {
   let remote;
   try { setSync("saving", "불러오는 중…"); remote = await fetchRemote(); }
-  catch (e) { setSync("local", e.message === "no-api" ? "이 기기에 저장" : "이 기기에 저장 (서버 연결 안 됨)"); listKey = null; return; }
-  try { localStorage.setItem(STORE_KEY + ":key", listKey); } catch (e) {}
+  catch (e) {
+    if (e.message === "no-api") { setSync("local", "이 기기에 저장"); listKey = null; return; }
+    setSync("local", offlineText());
+    try { localStorage.setItem(STORE_KEY + ":key", listKey); } catch (e2) {}
+    if (adopted) { try { localStorage.setItem(STORE_KEY + ":adopt", "1"); } catch (e2) {} }
+    let t = null;
+    const retry = () => { window.removeEventListener("online", retry); clearTimeout(t); connectNetlify(adopted); };
+    window.addEventListener("online", retry); t = setTimeout(retry, 20000);
+    return;
+  }
+  try { localStorage.setItem(STORE_KEY + ":key", listKey); localStorage.removeItem(STORE_KEY + ":adopt"); } catch (e) {}
   remoteSave = async d => {
     const r = await fetch(apiUrl(), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(d) });
     if (!r.ok) throw new Error("http " + r.status);
-    lastRemoteAt = d.updatedAt || 0;
+    const body = await r.json().catch(() => ({}));
+    lastRemoteAt = body.data ? remoteStamp(body.data) : lastRemoteAt;
+    return body.data || null;
   };
   syncMode = "netlify"; remoteReady = true; updateInfo();
-  if (remote && (adopted || state.sample || (remote.updatedAt || 0) >= (state.updatedAt || 0))) {
-    lastRemoteAt = remote.updatedAt || 0; applyRemote(remote); setSync("synced", "동기화됨");
+  if (remote) {
+    const legacy = !(Number(remote.version) >= 5);
+    // 새 기기 연결·예시 상태면 서버 목록으로 바꿈. 예전 형식(합치기 정보 없음)이면 예전처럼 더 최근 쪽을 고름
+    const replace = adopted || state.sample;
+    lastRemoteAt = remoteStamp(remote);
+    if (replace || !legacy || (remote.updatedAt || 0) >= (state.updatedAt || 0)) applyRemote(remote, replace || legacy);
+    else if (Array.isArray(remote.inbox)) { state.inbox = JSON.parse(JSON.stringify(remote.inbox)); processInbox(); }
+    setSync("synced", "동기화됨");
+    // 이 기기에만 있던 변경(오프라인에서 적은 것 등)이 있으면 올림. 서버가 합쳐 줌
+    if (!replace && JSON.stringify(normalize(JSON.parse(JSON.stringify(remote))).lists) !== JSON.stringify(state.lists)) { dirty = true; flushRemote(); }
   } else {
     if (state.sample) { state = blankState(); saveLocal(); render(); }
-    if (remote && Array.isArray(remote.inbox)) { state.inbox = JSON.parse(JSON.stringify(remote.inbox)); processInbox(); }
     dirty = true; flushRemote();
   }
+  if (pullRemote) return;
   // 다른 기기에서 바꾼 내용 받아오기: 화면을 다시 볼 때와 20초마다
-  const pull = async () => {
+  pullRemote = async () => {
     if (document.hidden || writing || dirty || editing) return;
     try {
       const d = await fetchRemote();
       // 기기·서버 시계가 달라도 놓치지 않게: 시각이 "다르면" 받아옴
       const newInbox = d && (d.inbox || []).some(e => e && !(state.inboxDone || []).includes(e.id));
-      if (d && ((d.updatedAt || 0) !== lastRemoteAt || newInbox)) { lastRemoteAt = d.updatedAt || 0; applyRemote(d); }
+      if (d && (remoteStamp(d) !== lastRemoteAt || newInbox)) { lastRemoteAt = remoteStamp(d); applyRemote(d, !(Number(d.version) >= 5)); }
       setSync("synced", "동기화됨");
-    } catch (e) { setSync("local", "이 기기에 저장 (서버 연결 안 됨)"); }
+    } catch (e) { setSync("local", offlineText()); }
   };
-  document.addEventListener("visibilitychange", pull);
-  window.addEventListener("focus", pull);
-  setInterval(pull, 20000);
+  document.addEventListener("visibilitychange", pullRemote);
+  window.addEventListener("focus", pullRemote);
+  setInterval(pullRemote, 20000);
 }
 
 /* ===== 정보 팝업 ===== */
@@ -1154,7 +1217,7 @@ $("histClose").addEventListener("click", closeHist);
 $("histModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeHist(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("histModal").hidden) closeHist(); });
 
-function openInfo() { updateInfo(); $("infoModal").hidden = false; $("infoClose").focus(); }
+function openInfo() { updateInfo(); updateInstall(); $("infoModal").hidden = false; $("infoClose").focus(); }
 function closeInfo() { $("infoModal").hidden = true; $("verBtn").focus(); }
 $("verBtn").addEventListener("click", openInfo);
 $("infoClose").addEventListener("click", closeInfo);
@@ -1166,11 +1229,55 @@ $("copyLink").addEventListener("click", async () => {
   catch (e) { inp.select(); $("copyStatus").textContent = "선택해 두었어요. 길게 눌러 복사하세요."; }
 });
 
-function applyRemote(data) {
+/* ===== 기기 간 합치기 =====
+   아래 MERGE-START ~ MERGE-END 는 netlify/lib/merge.mjs 와 똑같은 코드 (서버도 같은 규칙으로 합침, npm test 가 확인) */
+/* MERGE-START */
+const TOMBSTONE_DAYS = 90;
+const itemTime = it => Number(it && (it.mt || it.doneAt || it.createdAt)) || 0;
+/* base 위에 inc 를 합침. 항목은 id 별로 더 최근에 고친 쪽(mt)이 이기고, 지운 항목(deleted 기록)은 그 뒤에 고친 게 없으면 빠짐.
+   목록 순서·최근 항목·구입처 같은 나머지는 inc 쪽을 따름. */
+function mergeState(base, inc) {
+  if (!base || typeof base !== "object") return inc;
+  if (!inc || typeof inc !== "object") return base;
+  const out = { ...base, ...inc };
+  const deleted = {};
+  const cutoff = Date.now() - TOMBSTONE_DAYS * 86400000;
+  for (const src of [base.deleted, inc.deleted]) {
+    if (!src || typeof src !== "object") continue;
+    for (const [id, t] of Object.entries(src)) if (Number(t) > cutoff && !(deleted[id] >= Number(t))) deleted[id] = Number(t);
+  }
+  out.deleted = deleted;
+  const lists = {};
+  const keys = new Set([...Object.keys(base.lists || {}), ...Object.keys(inc.lists || {})]);
+  for (const k of keys) {
+    const bl = (base.lists || {})[k] || {}, il = (inc.lists || {})[k] || {};
+    const bItems = Array.isArray(bl.items) ? bl.items : [], iItems = Array.isArray(il.items) ? il.items : [];
+    const bById = new Map(bItems.filter(i => i && i.id).map(i => [i.id, i]));
+    const iIds = new Set(iItems.filter(i => i && i.id).map(i => i.id));
+    const pick = it => { const b = bById.get(it.id); return b && itemTime(b) > itemTime(it) ? b : it; };
+    // 상대 기기에만 있는 항목(대개 새로 추가한 것)은 맨 앞에
+    const items = [...bItems.filter(i => i && i.id && !iIds.has(i.id)), ...iItems.filter(i => i && i.id).map(pick)]
+      .filter(i => !(deleted[i.id] >= itemTime(i)));
+    lists[k] = { ...bl, ...il, items, recent: Array.isArray(il.recent) ? il.recent : (Array.isArray(bl.recent) ? bl.recent : []) };
+  }
+  out.lists = lists;
+  const done = [...new Set([...(Array.isArray(base.inboxDone) ? base.inboxDone : []), ...(Array.isArray(inc.inboxDone) ? inc.inboxDone : [])])];
+  if (done.length) out.inboxDone = done.slice(-200);
+  out.updatedAt = Math.max(Number(base.updatedAt) || 0, Number(inc.updatedAt) || 0) || undefined;
+  return out;
+}
+/* MERGE-END */
+/* 서버(또는 다른 기기)에서 받은 데이터를 반영. replace 면 통째로 바꾸고, 아니면 항목 단위로 합침 */
+function applyRemote(data, replace) {
   if (!data || editing) return;
   // 동기화 데이터는 읽기 전용(고정) 객체라 그대로 쓰면 추가/수정이 막힘 → 복사본 사용
-  const next = normalize(JSON.parse(JSON.stringify(data)));
-  if (JSON.stringify(next.lists) !== JSON.stringify(state.lists)) keepBackup();
+  const remote = normalize(JSON.parse(JSON.stringify(data)));
+  const next = replace || state.sample ? remote : normalize(mergeState(state, remote));
+  if (state.sample) delete next.sample;
+  if (JSON.stringify(next.lists) === JSON.stringify(state.lists) && JSON.stringify(next.inbox || []) === JSON.stringify(state.inbox || [])) {
+    state.updatedAt = next.updatedAt; state.deleted = next.deleted; state.inboxDone = next.inboxDone; saveLocal(); return;
+  }
+  keepBackup();
   state = next; saveLocal(); render();
   processInbox();
 }
@@ -1203,6 +1310,38 @@ function renderAbout() {
   sv.innerHTML = '<div class="head"><span class="date"></span></div>';
   sv.querySelector(".date").textContent = `데이터 저장 형식: ${SCHEMA_VERSION}번`;
   ol.appendChild(sv);
+}
+
+/* ===== 홈 화면 앱(PWA) =====
+   sw.js 가 앱 화면을 기기에 보관해서 인터넷이 없어도 열림. 목록 데이터(/api)는 보관하지 않음 (늘 서버·이 기기 저장소에서). */
+const standalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+let installEvt = null;
+function updateInstall() {
+  const box = $("installBox"), btn = $("installBtn"), txt = $("installText");
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  box.hidden = syncMode !== "netlify" || standalone() || (!installEvt && !ios);
+  btn.hidden = !installEvt;
+  txt.textContent = installEvt
+    ? "홈 화면에 앱으로 추가하면 주소창 없이 바로 열리고, 인터넷이 안 될 때도 열려요."
+    : "Safari 아래쪽 공유 버튼 → \"홈 화면에 추가\"를 누르면 앱처럼 바로 열리고, 인터넷이 안 될 때도 열려요.";
+}
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; updateInstall(); });
+window.addEventListener("appinstalled", () => { installEvt = null; updateInstall(); });
+$("installBtn").addEventListener("click", async () => {
+  if (!installEvt) return;
+  installEvt.prompt();
+  try { await installEvt.userChoice; } catch (e) {}
+  installEvt = null; updateInstall();
+});
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost") && !(window.claude && typeof window.claude.use === "function")) {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
+}
+/* 설치한 앱 아이콘 배지: 오늘까지 해야 하는(지난 것 포함) 할일 개수 */
+function updateBadge() {
+  if (!("setAppBadge" in navigator) || !state.lists.todo) return;
+  const t = ymd(todayStart());
+  const n = state.lists.todo.items.filter(i => !i.done && i.due && i.due <= t).length;
+  (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {});
 }
 
 renderAbout();
