@@ -5,5 +5,8 @@
   "description": "장바구니 메모 앱 (Netlify + Netlify Blobs)",
   "dependencies": {
     "@netlify/blobs": "11.1.7"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
   }
 }
