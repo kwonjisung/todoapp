@@ -65,8 +65,8 @@ header {
   background: var(--bg); padding-block: 14px 10px;
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px;
 }
-.titlebar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-h1 { font-family: var(--font-display); font-weight: 400; font-size: 30px; margin: 0; letter-spacing: 0.5px; }
+.titlebar { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 30px; margin: 0; letter-spacing: 0.5px; white-space: nowrap; }
 .sync { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--done); }
 .sync[data-state="synced"]::before { background: var(--accent); }
@@ -159,6 +159,7 @@ li.done .qty { color: var(--done); background: transparent; }
   font: inherit; font-size: 12.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
   border: 0; padding: 2px 9px; border-radius: 999px; cursor: pointer; font-variant-numeric: tabular-nums;
 }
+.titlebar .ver { white-space: nowrap; }
 .ver:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ghostver { background: transparent; border: 1px solid var(--line); color: var(--muted); font-weight: 500; }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -289,7 +290,7 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
   <header>
     <div class="titlebar">
       <h1 id="title">장바구니</h1>
-      <span class="right"><span class="layoutsw" id="layoutSw" role="group" aria-label="큰 화면 보기"></span><span class="sync" id="sync" data-state="local">이 기기에 저장</span><button class="ver ghostver" id="histBtn" type="button" aria-haspopup="dialog">완료 기록</button><button class="ver" id="verBtn" type="button" aria-haspopup="dialog"></button></span>
+      <span class="right"><span class="layoutsw" id="layoutSw" role="group" aria-label="큰 화면 보기"></span><span class="sync" id="sync" data-state="local">이 기기에 저장</span><button class="ver ghostver" id="helpBtn" type="button" aria-haspopup="dialog">사용법</button><button class="ver ghostver" id="histBtn" type="button" aria-haspopup="dialog">완료 기록</button><button class="ver" id="verBtn" type="button" aria-haspopup="dialog"></button></span>
     </div>
     <nav class="tabs" id="tabs" role="tablist" hidden></nav>
     <div class="add" id="addForm">
@@ -316,6 +317,90 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
       <div class="histbar"><div class="filters" id="histFilter" role="group" aria-label="기록 종류"></div><div class="segs" id="histView" role="group" aria-label="보는 방식"></div></div>
       <div class="stats" id="histStats"></div>
       <div id="histList"></div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="helpModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="sheethead">
+      <h2 id="helpTitle">사용법</h2>
+      <button class="icon" id="helpClose" type="button" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="sheetbody">
+      <section class="prose">
+        <h3>기본</h3>
+        <ul>
+          <li>위 칸에 적고 <b>Enter</b>(또는 추가). 왼쪽 동그라미를 누르면 체크, 글자를 누르면 고치기, 오른쪽 X는 지우기예요.</li>
+          <li>잘못 지우거나 체크했으면 아래에 뜨는 <b>되돌리기</b>를 누르세요.</li>
+          <li>탭: <b>전체</b>는 둘 다 한눈에, <b>장바구니</b>·<b>할일</b>은 하나씩. 전체 탭에서는 입력칸 왼쪽에서 어느 목록에 넣을지 골라요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>장바구니 적는 법</h3>
+        <ul>
+          <li><b>다이소 우유 2개</b> → 구입처 다이소, 우유, 수량 2개로 나눠져요.</li>
+          <li>앞 단어가 아는 가게(다이소, 이마트, 쿠팡, 편의점, 약국, 주유소, 철물점 등이나 한 번 쓴 가게)이거나 <b>동네마트</b>, <b>행복약국</b>, <b>SK주유소</b>처럼 가게 이름으로 끝나면 구입처로 읽어요.</li>
+          <li>처음 쓰는 가게는 <b>@동네마트 두부</b> 또는 <b>동네마트: 두부</b>. 다음부터는 @ 없이 "동네마트 두부"만 써도 돼요.</li>
+          <li>구입처 버튼을 누르면 그 가게에서 살 것만 보여요. 그 상태로 적으면 자동으로 그 가게 항목이 돼요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>할일 적는 법</h3>
+        <ul>
+          <li>앞에 날짜를 쓰면 마감일: <b>오늘 세차</b>, <b>내일 병원</b>, <b>11/17 관리비</b>, <b>11월 17일 회의</b>. 날짜가 없으면 마감없음.</li>
+          <li>반복: <b>매일 약 먹기</b>, <b>매주 월 분리수거</b>, <b>매월 15일 관리비</b>. 완료하면 다음 날짜로 새로 생겨요.</li>
+          <li>마감이 가까운 순서로 정렬되고, 지난 할일은 빨갛게 보여요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>끝낸 것과 완료 기록</h3>
+        <ul>
+          <li>체크한 항목은 아래 접힌 칸(담은 것·완료)으로 내려가요. 다시 누르면 되돌아와요.</li>
+          <li>7일이 지나거나 <b>기록으로 보내기</b>를 누르면 목록에서 빠지고, 오른쪽 위 <b>완료 기록</b>에 카드로 남아요. 지워지지 않아요.</li>
+          <li>완료 기록의 <b>자주 한 것</b>에서 몇 번 했는지 보고, 카드의 <b>다시 추가</b>로 바로 목록에 넣을 수 있어요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>PC·태블릿 큰 화면</h3>
+        <ul>
+          <li>화면이 넓으면 오른쪽 위에서 <b>좁게 / 나란히 / 보드</b>를 고를 수 있어요.</li>
+          <li><b>보드</b>는 가게별·마감별 칸으로 펼쳐져요. 항목을 마우스로 끌어 다른 칸에 놓으면 구입처나 마감일이 바뀌고, 완료 칸에 놓으면 체크돼요.</li>
+          <li><b>전체</b> 탭(보드·나란히)에서는 장바구니 ↔ 할일 사이로도 끌어 옮길 수 있어요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>로그인과 여러 기기</h3>
+        <ul>
+          <li>오른쪽 위 버전 표시 → <b>Google로 로그인</b>. 휴대폰·PC 어디서든 같은 계정으로 로그인하면 같은 목록이에요.</li>
+          <li>로그인 전에 쓰던 목록은 로그인하면 자동으로 계정으로 옮겨져요.</li>
+          <li>두 기기에서 동시에 고쳐도 서로 덮어쓰지 않고 합쳐져요. 오른쪽 위가 <b>동기화됨</b>이면 저장 끝.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>휴대폰 홈 화면에 설치</h3>
+        <ul>
+          <li>안드로이드: 버전 표시 → <b>앱으로 설치</b> (또는 Chrome 메뉴 → 홈 화면에 추가).</li>
+          <li>아이폰: Safari 아래 공유 버튼 → <b>홈 화면에 추가</b>.</li>
+          <li>설치하면 매장처럼 인터넷이 약해도 열리고, 아이콘에 오늘·지난 할일 개수가 떠요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>말로 추가하기 (안드로이드)</h3>
+        <ul>
+          <li>버전 표시 → 내 계정 → <b>음성·단축어용 추가 주소</b>를 복사해 MacroDroid에 넣어요. 자세한 설정은 저장소의 docs/voice-macrodroid.md에 있어요.</li>
+          <li>말할 때도 적을 때와 같아요. 쉼표나 "그리고"로 여러 개: "우유, 계란 1판 그리고 대파"</li>
+          <li>앱이 열려 있으면 20초 안에, 아니면 다음에 열 때 목록에 들어와요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>꿀팁</h3>
+        <ul>
+          <li>장바구니 탭 입력칸 아래 <b>+ 우유</b> 같은 최근 항목을 누르면 바로 다시 담겨요.</li>
+          <li>장 보러 가기 전에 구입처 버튼으로 그 가게 것만 보면 빠뜨리지 않아요.</li>
+          <li>매번 하는 일은 반복 할일로 한 번만 적어 두세요.</li>
+          <li>PC에서는 보드로 한 주를 정리하고, 휴대폰에서는 체크만 하면 편해요.</li>
+        </ul>
+      </section>
     </div>
   </div>
 </div>
@@ -420,8 +505,9 @@ const LIST_TYPES = {
 /* ===== 앱 버전 =====
    앱을 고칠 때마다 APP_VERSION 을 올리고 CHANGELOG 맨 위에 한 줄 추가합니다.
    앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
-const APP_VERSION = "1.15.0";
+const APP_VERSION = "1.15.1";
 const CHANGELOG = [
+  { v: "1.15.1", date: "2026-11-24", notes: ["오른쪽 위 \"사용법\" 버튼: 적는 법, 큰 화면·끌어 옮기기, 로그인, 홈 화면 설치, 음성 추가, 꿀팁을 한 화면에"] },
   { v: "1.15.0", date: "2026-11-24", notes: ["완료 기록을 한 줄 글자 대신 항목별 카드로: 목록·구입처·수량·반복·마감·몇 번 했는지", "\"자주 한 것\" 보기: 같은 일을 묶어 횟수, 마지막 날짜, 보통 며칠마다 했는지", "기록에서 \"+ 다시 추가\"를 누르면 같은 구입처·수량으로 목록에 바로 다시 들어감 (이미 있으면 \"목록에 있음\")"] },
   { v: "1.14.1", date: "2026-11-24", notes: ["구입처 인식 확대: 주유소·마트·철물점·문구점·정육점·빵집·세탁소·이케아·알리·테무 등 추가", "목록에 없어도 \"동네마트\", \"행복약국\", \"SK주유소\"처럼 가게 이름으로 끝나는 첫 단어는 구입처로 인식", "할일을 장바구니로 끌어 옮길 때도 같은 규칙 적용"] },
   { v: "1.14.0", date: "2026-11-24", notes: ["Google 로그인: 로그인하면 목록이 내 계정 전용 공간에 저장되고, 본인만 읽고 쓸 수 있음", "다른 기기도 같은 계정으로 로그인만 하면 같은 목록 (연결 링크 필요 없음)", "로그인할 때 이 기기의 예전 목록(연결 링크 열쇠)을 계정으로 자동으로 옮기고, 옮긴 뒤에는 열쇠로 읽을 수 없게 막음", "음성·단축어용 '추가 전용' 주소: 항목을 넣을 수만 있고 목록은 볼 수 없음, 새로 만들면 예전 주소는 못 씀", "로그아웃하면 이 기기의 목록 사본도 지움"] },
@@ -1587,6 +1673,12 @@ $("histClose").addEventListener("click", closeHist);
 $("histModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeHist(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("histModal").hidden) closeHist(); });
 
+function openHelp() { $("helpModal").hidden = false; $("helpClose").focus(); }
+function closeHelp() { $("helpModal").hidden = true; $("helpBtn").focus(); }
+$("helpBtn").addEventListener("click", openHelp);
+$("helpClose").addEventListener("click", closeHelp);
+$("helpModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeHelp(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("helpModal").hidden) closeHelp(); });
 function openInfo() { updateInfo(); updateInstall(); renderAccount(); if (authUser && !$("addLink").value) loadAddKey(false); $("infoModal").hidden = false; $("infoClose").focus(); }
 function closeInfo() { $("infoModal").hidden = true; $("verBtn").focus(); }
 $("verBtn").addEventListener("click", openInfo);
