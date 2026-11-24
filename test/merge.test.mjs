@@ -65,3 +65,11 @@ test("mt 없는 예전 항목은 doneAt/createdAt 으로 비교", () => {
   const inc = st([{ id: "a", text: "우유", createdAt: 1, done: false }]);
   assert.equal(mergeState(base, inc).lists.shopping.items[0].done, true);
 });
+
+test("색상 팔레트(look)는 더 나중에 고른 쪽이 이긴다", () => {
+  const older = { shopping: { c: "pink", p: "dots" }, todo: { c: "blue", p: "none" }, mt: T - 100 };
+  const newer = { shopping: { c: "orange", p: "grid" }, todo: { c: "navy", p: "stripe" }, mt: T - 1 };
+  assert.deepEqual(mergeState(st([], { look: newer }), st([], { look: older })).look, newer); // 서버가 더 최근
+  assert.deepEqual(mergeState(st([], { look: older }), st([], { look: newer })).look, newer);
+  assert.deepEqual(mergeState(st([], { look: older }), st([])).look, older); // 예전 앱이 look 없이 저장해도 유지
+});

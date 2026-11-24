@@ -295,13 +295,59 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
 .drophint { margin: 4px 2px 2px; padding: 14px 8px; text-align: center; font-size: 13px; color: var(--muted); border: 1.5px dashed var(--line); border-radius: var(--radius); }
 .group > .lanes { margin-top: 10px; }
 #main > .group + .group { margin-top: 32px; }
+
+/* ===== 색상 팔레트 =====
+   목록마다(장바구니·할일) 고른 색과 바닥 무늬. 실제 색 값은 JS(applyLook)가 #lookStyle 에 [data-kind="…"] 규칙으로 넣음.
+   그 안에서는 --accent·--accent-soft·--bg 가 목록 색으로 바뀌어 체크·수량·마감·버튼까지 같은 색이 됨.
+   --pat(무늬)·--pat-size·--kline(목록 테두리)도 함께. 단일 탭은 body, 전체 탭은 목록 묶음(.group)에 붙음. */
+body[data-kind] { background-color: var(--bg); background-image: var(--pat, none); background-size: var(--pat-size, auto); background-attachment: fixed; }
+[data-kind] ul.items { border-color: var(--kline, var(--line)); border-left: 4px solid var(--accent); }
+.tab[data-kind]::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px; vertical-align: 1px; }
+.tab[data-kind][aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.tab[data-kind][aria-selected="true"]::before { background: var(--accent-ink); }
+#main .group[data-kind] {
+  background-color: var(--bg); background-image: var(--pat, none); background-size: var(--pat-size, auto);
+  border: 1.5px solid var(--kline, var(--line)); border-radius: calc(var(--radius) + 6px); padding: 12px;
+}
+#main > .group[data-kind] + .group[data-kind] { margin-top: 16px; }
+.lanes.groups > .group[data-kind] { margin: 0; }
+.lanes.groups > .group[data-kind].dropover { border-style: dashed; border-color: var(--accent); background-color: var(--accent-soft); }
+li.hrow[data-kind] { border-left: 4px solid var(--accent); }
+.ver svg { width: 14px; height: 14px; vertical-align: -2px; }
+.lookbtn { display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 639px) { .lookbtn .lbl { display: none; } .lookbtn { padding-inline: 6px; } }
+.look { gap: 10px; }
+.look h3 { display: flex; align-items: center; gap: 6px; }
+.look h3::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.lookprev { background-color: var(--bg); background-image: var(--pat, none); background-size: var(--pat-size, auto); border: 1.5px solid var(--kline, var(--line)); border-radius: var(--radius); padding: 12px; }
+.lookprev li.item { min-height: 46px; cursor: default; }
+.swrow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.sw {
+  font: inherit; font-size: 11.5px; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer;
+  display: grid; justify-items: center; gap: 3px; white-space: nowrap;
+}
+.sw i { display: block; width: 34px; height: 34px; border-radius: 50%; background: var(--swl); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .08); }
+.sw[aria-checked="true"] { color: var(--fg); font-weight: 700; }
+.sw[aria-checked="true"] i { outline: 2.5px solid var(--fg); outline-offset: 2px; }
+.sw:focus-visible i, .pat:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+.patrow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pat {
+  font: inherit; font-size: 12px; color: var(--muted); cursor: pointer; height: 44px; border-radius: 10px;
+  border: 1.5px solid var(--line); background-color: var(--bg); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;
+}
+.pat span { background: var(--bg); padding: 0 4px; border-radius: 4px; }
+.pat[aria-checked="true"] { border-color: var(--accent); color: var(--fg); font-weight: 700; box-shadow: 0 0 0 1.5px var(--accent); }
+.looklabel { font-size: 12.5px; color: var(--muted); margin: 2px 0 -4px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sw i { background: var(--swd); } }
+:root[data-theme="dark"] .sw i { background: var(--swd); }
 </style>
+<style id="lookStyle"></style>
 
 <div class="wrap">
   <header>
     <div class="titlebar">
       <h1 id="title">장바구니</h1>
-      <span class="right"><span class="layoutsw" id="layoutSw" role="group" aria-label="큰 화면 보기"></span><span class="sync" id="sync" data-state="local">이 기기에 저장</span><button class="ver ghostver" id="helpBtn" type="button" aria-haspopup="dialog">사용법</button><button class="ver ghostver" id="histBtn" type="button" aria-haspopup="dialog">완료 기록</button><button class="ver" id="verBtn" type="button" aria-haspopup="dialog"></button></span>
+      <span class="right"><span class="layoutsw" id="layoutSw" role="group" aria-label="큰 화면 보기"></span><span class="sync" id="sync" data-state="local">이 기기에 저장</span><button class="ver ghostver lookbtn" id="lookBtn" type="button" aria-haspopup="dialog" aria-label="색상 팔레트"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="10" cy="7.3" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="7.3" r="1.3" fill="currentColor" stroke="none"/></svg><span class="lbl">색상</span></button><button class="ver ghostver" id="helpBtn" type="button" aria-haspopup="dialog">사용법</button><button class="ver ghostver" id="histBtn" type="button" aria-haspopup="dialog">완료 기록</button><button class="ver" id="verBtn" type="button" aria-haspopup="dialog"></button></span>
     </div>
     <nav class="tabs" id="tabs" role="tablist" hidden></nav>
     <div class="add" id="addForm">
@@ -328,6 +374,19 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
       <div class="histbar"><div class="filters" id="histFilter" role="group" aria-label="기록 종류"></div><div class="segs" id="histView" role="group" aria-label="보는 방식"></div></div>
       <div class="stats" id="histStats"></div>
       <div id="histList"></div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="lookModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="lookTitle">
+    <div class="sheethead">
+      <h2 id="lookTitle">색상 팔레트</h2>
+      <button class="icon" id="lookClose" type="button" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="sheetbody">
+      <p class="hint">장바구니와 할일을 서로 다른 색과 바닥 무늬로 꾸며 한눈에 구분해요. 고르는 즉시 바뀌어요.</p>
+      <div id="lookBody" style="display:grid;gap:22px"></div>
+      <div class="acctrow"><span class="hint" id="lookWhere" style="flex:1"></span><button class="link" id="lookReset" type="button" style="color:var(--muted)">기본 색으로</button></div>
     </div>
   </div>
 </div>
@@ -369,6 +428,13 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
           <li>체크한 항목은 아래 접힌 칸(담은 것·완료)으로 내려가요. 다시 누르면 되돌아와요.</li>
           <li>7일이 지나거나 <b>기록으로 보내기</b>를 누르면 목록에서 빠지고, 오른쪽 위 <b>완료 기록</b>에 카드로 남아요. 지워지지 않아요.</li>
           <li>완료 기록의 <b>자주 한 것</b>에서 몇 번 했는지 보고, 카드의 <b>다시 추가</b>로 바로 목록에 넣을 수 있어요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>나만의 색상</h3>
+        <ul>
+          <li>오른쪽 위 <b>색상</b>(팔레트 모양, 휴대폰은 그림만) 버튼에서 장바구니와 할일의 <b>색</b>(10가지)과 <b>바닥 무늬</b>(없음·점·사선·격자)를 따로 골라요. 고르는 즉시 바뀌어요.</li>
+          <li>로그인 중이면 내 계정에 저장돼 다른 기기에서도 같은 색이고, 아니면 이 기기에 저장돼요. <b>기본 색으로</b>를 누르면 처음 색으로 돌아가요.</li>
         </ul>
       </section>
       <section class="prose">
@@ -517,8 +583,9 @@ const LIST_TYPES = {
 /* ===== 앱 버전 =====
    앱을 고칠 때마다 APP_VERSION 을 올리고 CHANGELOG 맨 위에 한 줄 추가합니다.
    앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
-const APP_VERSION = "1.15.2";
+const APP_VERSION = "1.16.0";
 const CHANGELOG = [
+  { v: "1.16.0", date: "2026-11-24", notes: ["오른쪽 위 \"색상\"(팔레트) 버튼: 장바구니·할일마다 색 10가지와 바닥 무늬 5가지(없음·점·사선·격자)를 따로 골라 한눈에 구분", "고른 색은 Google 로그인 중이면 내 계정에 저장돼 다른 기기에서도 같고, 아니면 이 기기에 저장", "기본은 장바구니 초록 · 할일 파랑. 탭·체크·버튼·전체 탭 목록 묶음·완료 기록 줄까지 목록 색으로"] },
   { v: "1.15.2", date: "2026-11-24", notes: ["로그인하면 위쪽에 내 Google 계정(사진·이름) 표시, 누르면 내 계정 정보"] },
   { v: "1.15.1", date: "2026-11-24", notes: ["오른쪽 위 \"사용법\" 버튼: 적는 법, 큰 화면·끌어 옮기기, 로그인, 홈 화면 설치, 음성 추가, 꿀팁을 한 화면에"] },
   { v: "1.15.0", date: "2026-11-24", notes: ["완료 기록을 한 줄 글자 대신 항목별 카드로: 목록·구입처·수량·반복·마감·몇 번 했는지", "\"자주 한 것\" 보기: 같은 일을 묶어 횟수, 마지막 날짜, 보통 며칠마다 했는지", "기록에서 \"+ 다시 추가\"를 누르면 같은 구입처·수량으로 목록에 바로 다시 들어감 (이미 있으면 \"목록에 있음\")"] },
@@ -957,6 +1024,8 @@ function render() {
   document.body.dataset.layout = effLayout(); renderLayoutSwitch();
   const types = enabledTypes(); const isAll = active === "all";
   const tType = targetType(); const cfg = LIST_TYPES[tType]; const l = list(tType);
+  // 목록 색: 단일 탭은 화면 전체, 전체 탭은 입력칸·버튼이 넣을 목록 색이고 바닥은 중립(목록 묶음마다 자기 색)
+  applyLook(); document.body.dataset.kind = tType; document.body.toggleAttribute("data-all", isAll); syncThemeColor();
   $("title").textContent = isAll ? "전체" : cfg.label;
   $("addInput").placeholder = cfg.placeholder;
   $("hint").textContent = isAll ? "" : cfg.hint; $("hint").hidden = isAll || !cfg.hint;
@@ -966,7 +1035,7 @@ function render() {
     sel.innerHTML = "";
     for (const k of types) { const o = document.createElement("option"); o.value = k; o.textContent = LIST_TYPES[k].label; sel.appendChild(o); }
   }
-  sel.value = addTarget;
+  sel.value = addTarget; sel.dataset.kind = addTarget;
 
   const tabs = $("tabs");
   tabs.hidden = types.length < 2;
@@ -975,6 +1044,7 @@ function render() {
   for (const k of tabKeys) {
     const b = document.createElement("button");
     b.type = "button"; b.className = "tab"; b.role = "tab"; b.id = "tab-" + k;
+    if (k !== "all") b.dataset.kind = k;
     b.setAttribute("aria-selected", String(k === active));
     const n = k === "all" ? types.reduce((a, t) => a + openCount(t), 0) : openCount(k);
     b.textContent = (k === "all" ? "전체" : LIST_TYPES[k].label) + (n ? ` ${n}` : "");
@@ -1164,7 +1234,7 @@ function endDrag() {
 /* 전체 보기: 목록마다 제목 + 남은 것 + 끝난 것 */
 function groupEl(k) {
   const cfg = LIST_TYPES[k]; const items = state.lists[k].items;
-  const g = document.createElement("div"); g.className = "group";
+  const g = document.createElement("div"); g.className = "group"; g.dataset.kind = k;
   const head = document.createElement("div"); head.className = "grouphead";
   const h = document.createElement("h2"); h.textContent = cfg.label;
   const c = document.createElement("span"); c.className = "count"; c.textContent = `남은 ${openCount(k)}`;
@@ -1620,7 +1690,7 @@ function readdBtn(it, type) {
 function tag(cls, text) { const s = document.createElement("span"); s.className = cls; s.textContent = text; return s; }
 /* 한 줄: [목록] [구입처] 이름 수량 ↻반복 · 부가 정보 ... [다시 추가] */
 function histRow(it, type, metaBits) {
-  const li = document.createElement("li"); li.className = "hrow";
+  const li = document.createElement("li"); li.className = "hrow"; li.dataset.kind = type;
   const main = document.createElement("div"); main.className = "hmain";
   const top = document.createElement("div"); top.className = "htop";
   if (!histFilter) top.appendChild(tag("store kind", LIST_TYPES[type].label));
@@ -1768,6 +1838,9 @@ function mergeState(base, inc) {
   out.lists = lists;
   const done = [...new Set([...(Array.isArray(base.inboxDone) ? base.inboxDone : []), ...(Array.isArray(inc.inboxDone) ? inc.inboxDone : [])])];
   if (done.length) out.inboxDone = done.slice(-200);
+  // 색상 팔레트(look): 더 나중에 고른 쪽
+  const lookT = l => Number(l && l.mt) || 0;
+  if (base.look || inc.look) out.look = lookT(base.look) > lookT(inc.look) ? base.look : inc.look;
   out.updatedAt = Math.max(Number(base.updatedAt) || 0, Number(inc.updatedAt) || 0) || undefined;
   return out;
 }
@@ -1779,8 +1852,12 @@ function applyRemote(data, replace) {
   const remote = normalize(JSON.parse(JSON.stringify(data)));
   const next = replace || state.sample ? remote : normalize(mergeState(state, remote));
   if (state.sample) delete next.sample;
+  // 바꾸기만 하는 경우(replace·예시)에도 이 기기에서 더 나중에 고른 색은 지킴
+  if (state.look && Number(state.look.mt) > Number(next.look && next.look.mt || 0)) next.look = state.look;
   if (JSON.stringify(next.lists) === JSON.stringify(state.lists) && JSON.stringify(next.inbox || []) === JSON.stringify(state.inbox || [])) {
-    state.updatedAt = next.updatedAt; state.deleted = next.deleted; state.inboxDone = next.inboxDone; saveLocal(); return;
+    state.updatedAt = next.updatedAt; state.deleted = next.deleted; state.inboxDone = next.inboxDone;
+    if (JSON.stringify(next.look || null) !== JSON.stringify(state.look || null)) { state.look = next.look; saveLocal(); render(); if (!$("lookModal").hidden) renderLook(); return; }
+    saveLocal(); return;
   }
   keepBackup();
   state = next; saveLocal(); render();
@@ -1848,6 +1925,130 @@ function updateBadge() {
   const n = state.lists.todo.items.filter(i => !i.done && i.due && i.due <= t).length;
   (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {});
 }
+
+/* ===== 색상 팔레트 =====
+   state.look = { shopping: { c: 색 이름, p: 무늬 이름 }, todo: {...}, mt: 고친 시각 }
+   목록 데이터와 같은 문서에 들어가서, Google 로그인 중이면 내 계정에, 아니면 이 기기에 저장됨.
+   여러 기기에서 고쳐도 mt 가 더 나중인 쪽이 이김 (mergeState). */
+const PALETTES = [
+  { k: "green", name: "숲", l: "#2f7a4a", d: "#5cb87d" },
+  { k: "blue", name: "바다", l: "#2b67b8", d: "#6aa5ee" },
+  { k: "teal", name: "민트", l: "#0f7f7c", d: "#4fc9c4" },
+  { k: "navy", name: "남색", l: "#3a4aa6", d: "#8d9cf0" },
+  { k: "purple", name: "보라", l: "#6b4fbb", d: "#a790f0" },
+  { k: "pink", name: "벚꽃", l: "#bf3f78", d: "#f08cb8" },
+  { k: "red", name: "딸기", l: "#b8343f", d: "#f07a80" },
+  { k: "orange", name: "귤", l: "#c05a14", d: "#f0a05c" },
+  { k: "yellow", name: "레몬", l: "#8f7300", d: "#e3c34a" },
+  { k: "brown", name: "커피", l: "#85573a", d: "#d1a07c" },
+];
+const PATTERNS = [
+  { k: "none", name: "없음", img: "none", size: "auto" },
+  { k: "dots", name: "점", img: "radial-gradient(var(--pc) 1.6px, transparent 2px)", size: "16px 16px" },
+  { k: "stripe", name: "사선", img: "repeating-linear-gradient(135deg, var(--pc) 0 3px, transparent 3px 13px)", size: "auto" },
+  { k: "grid", name: "격자", img: "linear-gradient(var(--pc) 1px, transparent 1px), linear-gradient(90deg, var(--pc) 1px, transparent 1px)", size: "20px 20px" },
+];
+const LOOK_DEFAULT = { shopping: { c: "green", p: "none" }, todo: { c: "blue", p: "none" } };
+const lookOf = k => {
+  const v = (state.look && state.look[k]) || {}, d = LOOK_DEFAULT[k] || LOOK_DEFAULT.shopping;
+  return { pal: PALETTES.find(x => x.k === v.c) || PALETTES.find(x => x.k === d.c), pat: PATTERNS.find(x => x.k === v.p) || PATTERNS[0] };
+};
+/* 밝은/어두운 화면 각각의 목록 색 규칙. 바탕·연한 색·테두리·무늬 색은 목록 색을 섞어서 만듦 */
+function lookRules(dark, prefix) {
+  const base = dark ? { bg: "#121814", sf: "#1a221d", ln: "#2b362f", ink: "#0f1411", n: "#131614" } : { bg: "#f6f7f5", sf: "#ffffff", ln: "#dce4dd", ink: "#ffffff", n: "#f4f5f3" };
+  let css = "";
+  for (const k of Object.keys(LIST_TYPES)) {
+    const { pal, pat } = lookOf(k); const a = dark ? pal.d : pal.l;
+    css += `${prefix}[data-kind="${k}"]{--accent:${a};--accent-ink:${base.ink};` +
+      `--accent-soft:color-mix(in srgb,${a} ${dark ? 22 : 13}%,${base.sf});--bg:color-mix(in srgb,${a} ${dark ? 9 : 8}%,${base.bg});` +
+      `--kline:color-mix(in srgb,${a} ${dark ? 38 : 30}%,${base.ln});--pc:color-mix(in srgb,${a} ${dark ? 14 : 12}%,transparent);` +
+      `--pat:${pat.img};--pat-size:${pat.size}}`;
+  }
+  // 전체 탭: 바닥은 무늬 없는 중립색, 목록 묶음마다 자기 색
+  css += `${prefix}body[data-all]{--bg:${base.n};--pat:none}`;
+  return css;
+}
+let lookCSS = "";
+function applyLook() {
+  const css = lookRules(false, "") +
+    `@media (prefers-color-scheme: dark){${lookRules(true, ':root:not([data-theme="light"]) ')}}` +
+    lookRules(true, ':root[data-theme="dark"] ');
+  if (css !== lookCSS) { $("lookStyle").textContent = lookCSS = css; }
+}
+/* 휴대폰 위쪽 상태 표시줄 색도 지금 바탕색에 맞춤 */
+function syncThemeColor() {
+  const c = getComputedStyle(document.body).backgroundColor;
+  if (c) document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute("content", c));
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => render());
+function setLook(k, field, val) {
+  const look = { ...LOOK_DEFAULT, ...(state.look || {}) };
+  look[k] = { ...(look[k] || LOOK_DEFAULT[k]), [field]: val };
+  look.mt = Math.max(Date.now(), ((state.look && state.look.mt) || 0) + 1);
+  state.look = look; state.updatedAt = Date.now();
+  saveLocal(); render(); renderLook(); queueRemote();
+}
+function resetLook() {
+  state.look = { ...JSON.parse(JSON.stringify(LOOK_DEFAULT)), mt: Math.max(Date.now(), ((state.look && state.look.mt) || 0) + 1) };
+  state.updatedAt = Date.now(); saveLocal(); render(); renderLook(); queueRemote();
+}
+function renderLook() {
+  const box = $("lookBody"); if (!box) return;
+  const keep = document.activeElement && document.activeElement.dataset.lk;
+  box.innerHTML = "";
+  for (const k of enabledTypes()) {
+    const cfg = LIST_TYPES[k]; const { pal, pat } = lookOf(k);
+    const sec = document.createElement("section"); sec.className = "prose look"; sec.dataset.kind = k;
+    const h = document.createElement("h3"); h.textContent = cfg.label; sec.appendChild(h);
+    const prev = document.createElement("div"); prev.className = "lookprev"; prev.setAttribute("aria-hidden", "true");
+    const sample = k === "shopping" ? [["우유", "2", false], ["계란", "1판", true]] : [["세차", "", false], ["관리비 내기", "", true]];
+    prev.innerHTML = '<ul class="items"></ul>';
+    for (const [t, q, done] of sample) {
+      const li = document.createElement("li"); li.className = "item" + (done ? " done" : "");
+      li.innerHTML = `<span class="check">${ICON_CHECK}</span><div class="body"><span class="text"></span></div>`;
+      li.querySelector(".text").textContent = t;
+      if (q) { const s = document.createElement("span"); s.className = "qty"; s.textContent = q; li.querySelector(".body").appendChild(s); }
+      if (k === "todo" && !done) { const s = document.createElement("span"); s.className = "due today"; s.textContent = "오늘"; li.querySelector(".body").appendChild(s); }
+      prev.firstChild.appendChild(li);
+    }
+    sec.appendChild(prev);
+    const l1 = document.createElement("p"); l1.className = "looklabel"; l1.textContent = "색"; sec.appendChild(l1);
+    const sw = document.createElement("div"); sw.className = "swrow"; sw.role = "radiogroup"; sw.setAttribute("aria-label", `${cfg.label} 색`);
+    for (const p of PALETTES) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.role = "radio";
+      b.setAttribute("aria-checked", String(p.k === pal.k)); b.dataset.lk = `${k}:c:${p.k}`;
+      b.style.setProperty("--swl", p.l); b.style.setProperty("--swd", p.d);
+      b.innerHTML = "<i></i><span></span>"; b.lastChild.textContent = p.name;
+      b.onclick = () => setLook(k, "c", p.k);
+      sw.appendChild(b);
+    }
+    sec.appendChild(sw);
+    const l2 = document.createElement("p"); l2.className = "looklabel"; l2.textContent = "바닥 무늬"; sec.appendChild(l2);
+    const pr = document.createElement("div"); pr.className = "patrow"; pr.role = "radiogroup"; pr.setAttribute("aria-label", `${cfg.label} 바닥 무늬`);
+    for (const p of PATTERNS) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "pat"; b.role = "radio";
+      b.setAttribute("aria-checked", String(p.k === pat.k)); b.dataset.lk = `${k}:p:${p.k}`;
+      b.style.backgroundImage = p.img; b.style.backgroundSize = p.size;
+      b.innerHTML = "<span></span>"; b.firstChild.textContent = p.name;
+      b.onclick = () => setLook(k, "p", p.k);
+      pr.appendChild(b);
+    }
+    sec.appendChild(pr);
+    box.appendChild(sec);
+  }
+  $("lookWhere").textContent = syncMode === "account" && authUser
+    ? `내 Google 계정에 저장돼서 다른 기기에서도 같은 색으로 보여요.`
+    : syncMode !== "local" ? "목록과 함께 저장돼서 연결된 기기에서도 같은 색이에요."
+    : authOn ? "지금은 이 기기에만 저장돼요. Google로 로그인하면 계정에 저장돼요." : "이 기기에 저장돼요.";
+  if (keep) { const el = box.querySelector(`[data-lk="${keep}"]`); if (el) el.focus(); }
+}
+function openLook() { renderLook(); $("lookModal").hidden = false; $("lookClose").focus(); }
+function closeLook() { $("lookModal").hidden = true; $("lookBtn").focus(); }
+$("lookBtn").addEventListener("click", openLook);
+$("lookClose").addEventListener("click", closeLook);
+$("lookReset").addEventListener("click", resetLook);
+$("lookModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeLook(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("lookModal").hidden) closeLook(); });
 
 renderAbout();
 render();
