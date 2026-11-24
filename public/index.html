@@ -330,7 +330,7 @@ li.hrow[data-kind] { border-left: 4px solid var(--accent); }
 .sw[aria-checked="true"] { color: var(--fg); font-weight: 700; }
 .sw[aria-checked="true"] i { outline: 2.5px solid var(--fg); outline-offset: 2px; }
 .sw:focus-visible i, .pat:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
-.patrow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.patrow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .pat {
   font: inherit; font-size: 12px; color: var(--muted); cursor: pointer; height: 44px; border-radius: 10px;
   border: 1.5px solid var(--line); background-color: var(--bg); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;
@@ -433,7 +433,7 @@ li.hrow[data-kind] { border-left: 4px solid var(--accent); }
       <section class="prose">
         <h3>나만의 색상</h3>
         <ul>
-          <li>오른쪽 위 <b>색상</b>(팔레트 모양, 휴대폰은 그림만) 버튼에서 장바구니와 할일의 <b>색</b>(10가지)과 <b>바닥 무늬</b>(없음·점·사선·격자·타일)를 따로 골라요. 고르는 즉시 바뀌어요.</li>
+          <li>오른쪽 위 <b>색상</b>(팔레트 모양, 휴대폰은 그림만) 버튼에서 장바구니와 할일의 <b>색</b>(10가지)과 <b>바닥 무늬</b>(없음·점·사선·격자)를 따로 골라요. 고르는 즉시 바뀌어요.</li>
           <li>로그인 중이면 내 계정에 저장돼 다른 기기에서도 같은 색이고, 아니면 이 기기에 저장돼요. <b>기본 색으로</b>를 누르면 처음 색으로 돌아가요.</li>
         </ul>
       </section>
@@ -585,7 +585,7 @@ const LIST_TYPES = {
    앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
 const APP_VERSION = "1.16.0";
 const CHANGELOG = [
-  { v: "1.16.0", date: "2026-11-24", notes: ["오른쪽 위 \"색상\"(팔레트) 버튼: 장바구니·할일마다 색 10가지와 바닥 무늬 5가지(없음·점·사선·격자·타일)를 따로 골라 한눈에 구분", "고른 색은 Google 로그인 중이면 내 계정에 저장돼 다른 기기에서도 같고, 아니면 이 기기에 저장", "기본은 장바구니 초록 · 할일 파랑. 탭·체크·버튼·전체 탭 목록 묶음·완료 기록 줄까지 목록 색으로"] },
+  { v: "1.16.0", date: "2026-11-24", notes: ["오른쪽 위 \"색상\"(팔레트) 버튼: 장바구니·할일마다 색 10가지와 바닥 무늬 5가지(없음·점·사선·격자)를 따로 골라 한눈에 구분", "고른 색은 Google 로그인 중이면 내 계정에 저장돼 다른 기기에서도 같고, 아니면 이 기기에 저장", "기본은 장바구니 초록 · 할일 파랑. 탭·체크·버튼·전체 탭 목록 묶음·완료 기록 줄까지 목록 색으로"] },
   { v: "1.15.2", date: "2026-11-24", notes: ["로그인하면 위쪽에 내 Google 계정(사진·이름) 표시, 누르면 내 계정 정보"] },
   { v: "1.15.1", date: "2026-11-24", notes: ["오른쪽 위 \"사용법\" 버튼: 적는 법, 큰 화면·끌어 옮기기, 로그인, 홈 화면 설치, 음성 추가, 꿀팁을 한 화면에"] },
   { v: "1.15.0", date: "2026-11-24", notes: ["완료 기록을 한 줄 글자 대신 항목별 카드로: 목록·구입처·수량·반복·마감·몇 번 했는지", "\"자주 한 것\" 보기: 같은 일을 묶어 횟수, 마지막 날짜, 보통 며칠마다 했는지", "기록에서 \"+ 다시 추가\"를 누르면 같은 구입처·수량으로 목록에 바로 다시 들어감 (이미 있으면 \"목록에 있음\")"] },
@@ -1947,7 +1947,6 @@ const PATTERNS = [
   { k: "dots", name: "점", img: "radial-gradient(var(--pc) 1.6px, transparent 2px)", size: "16px 16px" },
   { k: "stripe", name: "사선", img: "repeating-linear-gradient(135deg, var(--pc) 0 3px, transparent 3px 13px)", size: "auto" },
   { k: "grid", name: "격자", img: "linear-gradient(var(--pc) 1px, transparent 1px), linear-gradient(90deg, var(--pc) 1px, transparent 1px)", size: "20px 20px" },
-  { k: "check", name: "타일", img: "conic-gradient(var(--pc) 25%, transparent 0 50%, var(--pc) 0 75%, transparent 0)", size: "28px 28px" },
 ];
 const LOOK_DEFAULT = { shopping: { c: "green", p: "none" }, todo: { c: "blue", p: "none" } };
 const lookOf = k => {
