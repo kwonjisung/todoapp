@@ -32,6 +32,9 @@ function mergeState(base, inc) {
   out.lists = lists;
   const done = [...new Set([...(Array.isArray(base.inboxDone) ? base.inboxDone : []), ...(Array.isArray(inc.inboxDone) ? inc.inboxDone : [])])];
   if (done.length) out.inboxDone = done.slice(-200);
+  // 색상 팔레트(look): 더 나중에 고른 쪽
+  const lookT = l => Number(l && l.mt) || 0;
+  if (base.look || inc.look) out.look = lookT(base.look) > lookT(inc.look) ? base.look : inc.look;
   out.updatedAt = Math.max(Number(base.updatedAt) || 0, Number(inc.updatedAt) || 0) || undefined;
   return out;
 }
