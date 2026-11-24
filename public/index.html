@@ -249,6 +249,15 @@ body[data-layout="side"] .add, body[data-layout="board"] .add { max-width: 720px
 .lanes.board > section.over .sechead h2 { color: var(--danger); }
 .lanes.board > section.today .sechead h2 { color: var(--accent); }
 .lanes.board li.item .store { display: none; } /* 칸 제목이 이미 구입처 */
+/* 보드에서 끌어서 옮기기 */
+.lanes.board li.item[draggable="true"] { cursor: grab; }
+.lanes.board li.item.dragsrc { opacity: .35; }
+.lanes.board > section.ghost { display: none; }
+body.dragging .lanes.board > section.ghost { display: block; }
+.lanes.board > section.droptarget { transition: border-color .12s, background .12s; }
+body.dragging .lanes.board > section.droptarget { border-style: dashed; }
+.lanes.board > section.dropover { border-color: var(--accent); border-style: solid !important; background: var(--accent-soft); }
+.drophint { margin: 4px 2px 2px; padding: 14px 8px; text-align: center; font-size: 13px; color: var(--muted); border: 1.5px dashed var(--line); border-radius: var(--radius); }
 .group > .lanes { margin-top: 10px; }
 #main > .group + .group { margin-top: 32px; }
 </style>
@@ -371,8 +380,9 @@ const LIST_TYPES = {
 /* ===== 앱 버전 =====
    앱을 고칠 때마다 APP_VERSION 을 올리고 CHANGELOG 맨 위에 한 줄 추가합니다.
    앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
-const APP_VERSION = "1.11.0";
+const APP_VERSION = "1.12.0";
 const CHANGELOG = [
+  { v: "1.12.0", date: "2026-11-24", notes: ["보드 보기에서 항목을 마우스로 끌어 다른 칸으로 옮기기", "장바구니: 놓은 칸의 구입처로 바뀜 (구입처 미지정 칸 포함)", "할일: 오늘 칸은 오늘, 이번 주 칸은 내일, 나중 칸은 일주일 뒤, 마감없음 칸은 마감 지움 (이미 그 칸 범위면 날짜 유지)", "완료 칸에 놓으면 체크, 완료에서 끌어내면 다시 할 것으로. 옮긴 뒤 되돌리기 가능"] },
   { v: "1.11.0", date: "2026-11-24", notes: ["두 기기에서 거의 동시에 고쳐도 서로 덮어쓰지 않게 항목 단위로 합쳐서 저장 (지운 항목이 되살아나지 않음)", "인터넷 없이 앱을 열었다가 연결되면 자동으로 다시 연결해 올림 (전에는 앱을 다시 열어야 했음)", "홈 화면에 앱으로 설치 가능, 오프라인에서도 열림", "설치한 앱 아이콘에 오늘·지난 할일 개수 배지", "데이터 저장 형식 5번: 항목별 고친 시각(mt), 지운 항목 기록(deleted)"] },
   { v: "1.10.0", date: "2026-11-23", notes: ["큰 화면(900px 이상) 보기 선택: 좁게 / 나란히 / 보드", "나란히: 화면을 넓게 쓰고 남은 것과 완료를 옆에 나란히, 전체 탭은 장바구니와 할일을 옆으로", "보드: 장바구니는 구입처별, 할일은 마감(지남·오늘·이번 주·나중·마감없음)별 칸으로 펼쳐 보기"] },
   { v: "1.9.0", date: "2026-11-16", notes: ["장바구니도 할일과 같은 방식: 담은 것은 접힌 칸에 구매 날짜와 함께, 7일 지나면 기록으로", "\"담은 것 비우기\"는 지우지 않고 \"기록으로 보내기\"로 변경", "완료 기록에 장바구니 구매 내역 포함, 전체·장바구니·할일로 골라 보기"] },
@@ -666,7 +676,7 @@ function toggle(id, type) {
       while (next < todayStart()) next = nextOccurrence(it.repeat, next, false);
       const child = { id: uid(), store: it.store || "", due: ymd(next), repeat: it.repeat, text: it.text, qty: it.qty || "", done: false, createdAt: Date.now(), mt: Date.now() };
       l.items.unshift(child); it.spawnedId = child.id;
-      lastRemoved = null; lastArchived = null; showToast(`다음: ${dueInfo(child.due).label} ${it.text}`);
+      lastRemoved = null; lastArchived = null; lastMoved = null; showToast(`다음: ${dueInfo(child.due).label} ${it.text}`);
     } else if (it.spawnedId) {
       // 완료를 되돌리면 방금 만든 다음 회차는 지움 (아직 손대지 않았을 때만)
       const ci = l.items.findIndex(i => i.id === it.spawnedId && !i.done);
@@ -684,7 +694,7 @@ function removeItem(id, type) {
   const l = list(type); const idx = l.items.findIndex(i => i.id === id); if (idx < 0) return;
   const [it] = l.items.splice(idx, 1);
   markDeleted(it.id);
-  lastArchived = null;
+  lastArchived = null; lastMoved = null;
   lastRemoved = { type, items: [[idx, it]], recent: l.recent.slice() };
   if (LIST_TYPES[type].showRecent) rememberRecent([entryLabel(it)], type);
   commit(); showToast(`'${it.text}' 삭제됨`);
@@ -697,12 +707,45 @@ function clearDone(type) {
   const recentBefore = l.recent.slice();
   for (const it of moved) { it.archived = true; touch(it); }
   if (LIST_TYPES[type].showRecent) rememberRecent(moved.map(i => entryLabel(i)), type);
-  lastArchived = { type, ids: moved.map(i => i.id), recent: recentBefore }; lastRemoved = null;
+  lastArchived = { type, ids: moved.map(i => i.id), recent: recentBefore }; lastRemoved = null; lastMoved = null;
   commit(); showToast(`${moved.length}개를 기록으로 보냈어요`);
 }
 let lastArchived = null;
+/* ===== 보드에서 끌어 옮기기 =====
+   장바구니: 놓은 칸의 구입처로, 할일: 놓은 칸에 맞는 마감일로, 완료 칸: 체크 */
+let lastMoved = null;
+function dueForBucket(bucket, cur) {
+  const t = todayStart(), wk = ymd(addDays(t, 6));
+  if (bucket === "today") return ymd(t);
+  if (bucket === "week") return cur && cur > ymd(t) && cur <= wk ? cur : ymd(addDays(t, 1)); // 이번 주 안이면 그대로, 아니면 내일
+  if (bucket === "later") return cur && cur > wk ? cur : ymd(addDays(t, 7));                  // 나중이면 그대로, 아니면 일주일 뒤
+  return "";
+}
+function moveItem(id, type, target) {
+  const it = list(type).items.find(i => i.id === id); if (!it) return;
+  if (target.kind === "done") { if (!it.done) toggle(id, type); return; }
+  if (it.done) toggle(id, type); // 완료 칸에서 끌어내면 다시 할 것으로
+  const prev = { store: it.store || "", due: it.due || "" };
+  let label;
+  if (target.kind === "store") {
+    if (prev.store.toLowerCase() === target.value.toLowerCase()) return;
+    it.store = target.value; rememberStore(target.value); label = target.value || "구입처 미지정";
+  } else {
+    const due = dueForBucket(target.value, prev.due);
+    if (due === prev.due) return;
+    it.due = due; label = due ? dueInfo(due).label : "마감없음";
+  }
+  touch(it);
+  lastMoved = { type, id, prev }; lastRemoved = null; lastArchived = null;
+  commit(); showToast(`'${it.text}' → ${label}`);
+}
 function markDeleted(id) { (state.deleted || (state.deleted = {}))[id] = Date.now(); }
 function undo() {
+  if (lastMoved) {
+    const it = state.lists[lastMoved.type].items.find(i => i.id === lastMoved.id);
+    if (it) { it.store = lastMoved.prev.store; it.due = lastMoved.prev.due; touch(it); }
+    lastMoved = null; hideToast(); commit(); return;
+  }
   if (lastArchived) {
     const l = state.lists[lastArchived.type];
     for (const it of l.items) if (lastArchived.ids.includes(it.id)) { delete it.archived; touch(it); }
@@ -870,20 +913,22 @@ function boardColumns(open, type) {
   if (cfg.parseDue) {
     const t = ymd(todayStart()), wk = ymd(addDays(todayStart(), 6));
     const cols = [["over", "마감 지남"], ["today", "오늘"], ["week", "이번 주"], ["later", "나중"], ["none", "마감없음"]]
-      .map(([cls, title]) => ({ cls, title, items: [] }));
+      .map(([cls, title]) => ({ cls, title, items: [], drop: cls === "over" ? null : { kind: "due", value: cls } }));
     for (const it of open) {
       const d = it.due;
       cols[!d ? 4 : d < t ? 0 : d === t ? 1 : d <= wk ? 2 : 3].items.push(it);
     }
-    return cols.filter(c => c.items.length);
+    // 빈 칸은 끌고 있을 때만 놓을 자리로 보임 (마감 지남 칸에는 놓을 수 없음)
+    return cols.filter(c => c.items.length || c.drop);
   }
   if (cfg.parseStore) {
     const m = new Map();
     for (const it of open) {
       const key = (it.store || "").toLowerCase();
-      if (!m.has(key)) m.set(key, { cls: "", title: it.store || "구입처 미지정", items: [], none: !it.store });
+      if (!m.has(key)) m.set(key, { cls: "", title: it.store || "구입처 미지정", items: [], none: !it.store, drop: { kind: "store", value: it.store || "" } });
       m.get(key).items.push(it);
     }
+    if (!m.has("")) m.set("", { cls: "", title: "구입처 미지정", items: [], none: true, drop: { kind: "store", value: "" } });
     return [...m.values()].sort((a, b) => a.none - b.none || b.items.length - a.items.length || a.title.localeCompare(b.title, "ko"));
   }
   return open.length ? [{ cls: "", title: cfg.openTitle, items: open }] : [];
@@ -892,14 +937,40 @@ function boardColumns(open, type) {
 function listBody(type, open, done, keepEmptyOpen) {
   const cfg = LIST_TYPES[type]; const lay = effLayout(); const secs = [];
   if (lay === "board") {
-    for (const c of boardColumns(open, type)) { const s = sectionEl(c.title, c.items, null, type); if (c.cls) s.classList.add(c.cls); secs.push(s); }
-  } else if (open.length || keepEmptyOpen) secs.push(sectionEl(cfg.openTitle, open, null, type));
-  if (done.length) secs.push(sectionEl(cfg.doneTitle, done, cfg.clearLabel, type));
+    for (const c of boardColumns(open, type)) { const s = sectionEl(c.title, c.items, null, type); if (c.cls) s.classList.add(c.cls); dropZone(s, type, c.drop); secs.push(s); }
+    const ds = sectionEl(cfg.doneTitle, done, done.length ? cfg.clearLabel : null, type);
+    dropZone(ds, type, { kind: "done" }); secs.push(ds);
+  } else {
+    if (open.length || keepEmptyOpen) secs.push(sectionEl(cfg.openTitle, open, null, type));
+    if (done.length) secs.push(sectionEl(cfg.doneTitle, done, cfg.clearLabel, type));
+  }
   if (lay === "narrow") return secs;
   const box = document.createElement("div");
   box.className = "lanes " + (lay === "board" ? "board" : secs.length > 1 ? "split" : "");
   box.append(...secs);
   return [box];
+}
+
+/* 놓을 자리: 같은 목록의 항목만 받음. 빈 칸(ghost)은 끄는 동안만 보임 */
+let dragging = null;
+function dropZone(sec, type, target) {
+  if (!sec.querySelector("li.item")) {
+    sec.classList.add("ghost");
+    const h = document.createElement("p"); h.className = "drophint"; h.textContent = "여기로 끌어 놓기"; sec.appendChild(h);
+  }
+  if (!target) return;
+  sec.classList.add("droptarget");
+  const ok = () => dragging && dragging.type === type;
+  sec.addEventListener("dragover", e => { if (!ok()) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; sec.classList.add("dropover"); });
+  sec.addEventListener("dragleave", e => { if (!sec.contains(e.relatedTarget)) sec.classList.remove("dropover"); });
+  sec.addEventListener("drop", e => {
+    if (!ok()) return; e.preventDefault();
+    const d = dragging; endDrag(); moveItem(d.id, d.type, target);
+  });
+}
+function endDrag() {
+  dragging = null; document.body.classList.remove("dragging");
+  document.querySelectorAll(".dropover, .dragsrc").forEach(el => el.classList.remove("dropover", "dragsrc"));
 }
 
 /* 전체 보기: 목록마다 제목 + 남은 것 + 끝난 것 */
@@ -994,6 +1065,16 @@ function itemEl(it, type) {
     body.onclick = () => { editing = it.id; render(); };
     li.appendChild(body);
   }
+  if (effLayout() === "board" && editing !== it.id) {
+    li.draggable = true;
+    li.addEventListener("dragstart", e => {
+      dragging = { id: it.id, type }; e.dataTransfer.effectAllowed = "move";
+      try { e.dataTransfer.setData("text/plain", it.text); } catch (_) {}
+      li.classList.add("dragsrc");
+      requestAnimationFrame(() => document.body.classList.add("dragging")); // 끄는 그림이 잡힌 뒤 빈 칸을 펼침
+    });
+    li.addEventListener("dragend", endDrag);
+  }
   const del = document.createElement("button");
   del.type = "button"; del.className = "icon"; del.innerHTML = ICON_DEL; del.setAttribute("aria-label", "삭제: " + it.text);
   del.onclick = () => removeItem(it.id, type);
@@ -1003,7 +1084,7 @@ function itemEl(it, type) {
 
 let toastTimer;
 function showToast(msg) {
-  $("toastMsg").textContent = msg; $("toast").hidden = false; $("toastUndo").hidden = !(lastRemoved || lastArchived);
+  $("toastMsg").textContent = msg; $("toast").hidden = false; $("toastUndo").hidden = !(lastRemoved || lastArchived || lastMoved);
   clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, 5000);
 }
 function hideToast() { $("toast").hidden = true; }
@@ -1149,7 +1230,7 @@ async function connectNetlify(adopted) {
   if (pullRemote) return;
   // 다른 기기에서 바꾼 내용 받아오기: 화면을 다시 볼 때와 20초마다
   pullRemote = async () => {
-    if (document.hidden || writing || dirty || editing) return;
+    if (document.hidden || writing || dirty || editing || dragging) return;
     try {
       const d = await fetchRemote();
       // 기기·서버 시계가 달라도 놓치지 않게: 시각이 "다르면" 받아옴
@@ -1269,7 +1350,7 @@ function mergeState(base, inc) {
 /* MERGE-END */
 /* 서버(또는 다른 기기)에서 받은 데이터를 반영. replace 면 통째로 바꾸고, 아니면 항목 단위로 합침 */
 function applyRemote(data, replace) {
-  if (!data || editing) return;
+  if (!data || editing || dragging) return;
   // 동기화 데이터는 읽기 전용(고정) 객체라 그대로 쓰면 추가/수정이 막힘 → 복사본 사용
   const remote = normalize(JSON.parse(JSON.stringify(data)));
   const next = replace || state.sample ? remote : normalize(mergeState(state, remote));
@@ -1289,7 +1370,7 @@ function processInbox() {
   state.inboxDone = [...done, ...todo.map(e => e.id)].slice(-200);
   // 음성 끝에 붙는 "추가", "추가해 줘" 등은 빼고 저장
   for (const e of todo) addItem(String(e.text || "").replace(/^할\s*일\s*(?:에|:)?\s+/, "").replace(/\s*(?:을|를)?\s*추가\s*(?:해\s*줘|해\s*주세요|해|하기)?[.!]?$/, ""), LIST_TYPES[e.list] ? e.list : "shopping");
-  lastRemoved = null; lastArchived = null; showToast(`음성으로 ${todo.length}개 추가됨`);
+  lastRemoved = null; lastArchived = null; lastMoved = null; showToast(`음성으로 ${todo.length}개 추가됨`);
 }
 
 function renderAbout() {
