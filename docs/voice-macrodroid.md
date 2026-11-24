@@ -3,8 +3,9 @@
 앱을 열지 않고 말로 항목을 넣는 설정이에요. 휴대폰에서 한 번만 하면 돼요.
 
 ## 준비물
-- Netlify 사이트가 배포돼 있어야 해요 (`https://jstodoapp-0sag.netlify.app`).
-- **내 열쇠**: 앱 오른쪽 위 버전 표시 → "다른 기기 연결" 링크에서 `#k=` 뒤의 문자열 전부.
+- Netlify 사이트가 배포돼 있어야 해요 (`https://jstodoshop.netlify.app`).
+- **내 열쇠**: Google 로그인을 했으면 앱 오른쪽 위 버전 표시 → "내 계정" → "음성·단축어용 추가 주소"에서 `k=` 뒤 문자열 (또는 주소를 통째로 복사해 끝에 `[v=item]`만 붙여도 돼요). 로그인 전이면 "다른 기기 연결" 링크에서 `#k=` 뒤의 문자열 전부.
+  - 추가 주소로는 항목을 넣을 수만 있고 목록을 볼 수는 없어요.
 
 ## 매크로 만들기
 MacroDroid 버전에 따라 메뉴 이름이 조금 다를 수 있어요.
@@ -17,7 +18,7 @@ MacroDroid 버전에 따라 메뉴 이름이 조금 다를 수 있어요.
    - "음성 인식(Speech recognition)" 동작이 보이면 그걸 써도 돼요. 이 경우 키보드 없이 바로 듣기 시작해요.
 4. **동작 2**: "HTTP 요청(HTTP Request)"
    - 방식: `GET`
-   - 주소: `https://jstodoapp-0sag.netlify.app/api/add?k=내열쇠&list=shopping&text=[v=item]`
+   - 주소: `https://jstodoshop.netlify.app/api/add?k=내열쇠&list=shopping&text=[v=item]`
      (`[v=item]`은 MacroDroid 변수 넣기 버튼으로 넣고, "URL 인코딩" 옵션이 있으면 켜 주세요)
    - 할일로 넣는 매크로는 `list=todo`로 하나 더 만들면 돼요.
 5. **동작 3 (선택)**: "알림 표시" 또는 "말하기"로 `[v=item] 추가했어요`.
@@ -31,4 +32,4 @@ MacroDroid 버전에 따라 메뉴 이름이 조금 다를 수 있어요.
 
 ## 직접 확인하는 법
 휴대폰 브라우저 주소창에 아래 주소를 넣어 보세요. `{"ok":true,...}`가 나오면 성공이에요.
-`https://jstodoapp-0sag.netlify.app/api/add?k=내열쇠&text=테스트`
+`https://jstodoshop.netlify.app/api/add?k=내열쇠&text=테스트`

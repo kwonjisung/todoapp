@@ -201,6 +201,15 @@ li.done .qty { color: var(--done); background: transparent; }
 .keyrow { display: flex; gap: 6px; }
 .keyrow input { flex: 1; min-width: 0; font: 13px ui-monospace, monospace; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); }
 .btn.small { min-height: 36px; padding: 0 14px; font-size: 14px; }
+.btn.ghost { background: var(--surface); color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
+.gbtn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px 6px 10px; font-size: 14px; font-weight: 700; white-space: nowrap; }
+.gbtn svg { width: 18px; height: 18px; flex: none; }
+.gbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.loginnote { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--accent-soft); border-radius: var(--radius); padding: 10px 12px; margin: 10px 0 0; font-size: 13.5px; word-break: keep-all; }
+.loginnote span { flex: 1 1 220px; }
+.acctrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.acctrow img { width: 32px; height: 32px; border-radius: 50%; }
+.acctrow .who { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .changelog { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .changelog .head { display: flex; gap: 8px; align-items: baseline; }
 .changelog .num { font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -279,6 +288,7 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
     <div class="filters" id="storeFilter" role="group" aria-label="구입처 필터" hidden></div>
   </header>
 
+  <div class="loginnote" id="loginNote" hidden><span id="loginNoteText"></span><a class="gbtn" href="/api/auth/login"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 7l7.4 5.7c4.3-4 6.9-9.9 6.9-17.2z"/><path fill="#FBBC05" d="M10.6 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.6l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.8-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.4 2.3-6.2 0-11.5-4.1-13.4-9.8l-8 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Google로 로그인</a></div>
   <p class="hint" id="sampleNote" hidden>지금 보이는 항목은 예시예요. <button class="link" id="clearSample" type="button">예시 지우고 시작</button></p>
   <main id="main"></main>
 </div>
@@ -302,6 +312,21 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
       <button class="icon" id="infoClose" type="button" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="sheetbody">
+      <section class="prose" id="accountBox" hidden>
+        <h3>내 계정</h3>
+        <div id="acctOut">
+          <p>Google로 로그인하면 목록이 <b>내 계정 전용 공간</b>에 저장돼요. 로그인한 본인만 읽고 쓸 수 있고, 휴대폰·PC 어디서든 로그인만 하면 같은 목록을 봐요.</p>
+          <div style="margin-top:8px"><a class="gbtn" href="/api/auth/login"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 7l7.4 5.7c4.3-4 6.9-9.9 6.9-17.2z"/><path fill="#FBBC05" d="M10.6 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.6l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.8-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.4 2.3-6.2 0-11.5-4.1-13.4-9.8l-8 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Google로 로그인</a></div>
+        </div>
+        <div id="acctIn" hidden>
+          <div class="acctrow"><img id="acctPic" alt="" hidden referrerpolicy="no-referrer"><span class="who"><b id="acctName"></b><br><span class="hint" id="acctEmail"></span></span><button class="btn small ghost" id="logoutBtn" type="button">로그아웃</button></div>
+          <p class="hint" id="logoutHint" aria-live="polite"></p>
+          <h3 style="margin-top:14px">음성·단축어용 추가 주소</h3>
+          <p>MacroDroid·단축어에서 항목을 넣을 때 쓰는 주소예요. 이 주소로는 <b>추가만</b> 할 수 있고 목록을 볼 수는 없어요. 끝에 넣을 내용을 붙이세요.</p>
+          <div class="keyrow"><input id="addLink" type="text" readonly aria-label="추가 주소" placeholder="불러오는 중…"><button class="btn small" id="copyAdd" type="button">복사</button></div>
+          <div class="acctrow"><button class="link" id="newAddKey" type="button" style="color:var(--muted)">새 주소 만들기 (예전 주소는 못 쓰게 돼요)</button><span class="hint" id="addStatus" aria-live="polite"></span></div>
+        </div>
+      </section>
       <section class="prose" id="connectBox" hidden>
         <h3>다른 기기 연결</h3>
         <p>휴대폰과 PC에서 같은 목록을 보려면, 다른 기기에서 아래 연결 링크를 한 번 열어 주세요. 이 링크가 열쇠 역할을 하니 다른 사람에게는 보내지 마세요.</p>
@@ -318,6 +343,7 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
         <p>이 앱은 화면과 기능을 담은 <b>앱 코드</b>와, 내가 적은 목록을 담은 <b>데이터</b>(JSON)로 나뉘어 있어요. 앱을 업데이트하면 앱 코드만 바뀌고 데이터는 그대로 남아요.</p>
         <ul>
           <li><b>저장 위치</b>: <span id="storeWhere">이 기기의 브라우저 저장소</span></li>
+          <li><b>Google 로그인</b>: 로그인하면 목록이 내 계정 전용 공간에 저장돼요. 서버가 매번 로그인을 확인해서 본인 목록만 열어 주고, 로그인 정보는 앱 코드도 읽을 수 없는 보안 쿠키에 보관해요.</li>
           <li><b>이 기기에도 한 벌</b>: 같은 내용을 기기에도 저장해 둬서 인터넷이 잠깐 끊겨도 바로 열려요.</li>
           <li><b>저장 순서</b>: 추가하거나 체크하면 화면과 기기에 바로 반영되고, 잠시 뒤 서버로 올라가요. 오른쪽 위 표시가 "동기화됨"이면 올라간 거예요.</li>
           <li><b>두 기기에서 동시에 고쳐도 안전</b>: 항목마다 고친 시각을 기억해서, 휴대폰과 PC에서 거의 동시에 바꿔도 서로의 변경을 덮어쓰지 않고 합쳐요. 지운 항목도 다른 기기에서 다시 살아나지 않아요.</li>
@@ -380,8 +406,9 @@ const LIST_TYPES = {
 /* ===== 앱 버전 =====
    앱을 고칠 때마다 APP_VERSION 을 올리고 CHANGELOG 맨 위에 한 줄 추가합니다.
    앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
-const APP_VERSION = "1.12.0";
+const APP_VERSION = "1.13.0";
 const CHANGELOG = [
+  { v: "1.13.0", date: "2026-11-24", notes: ["Google 로그인: 로그인하면 목록이 내 계정 전용 공간에 저장되고, 본인만 읽고 쓸 수 있음", "다른 기기도 같은 계정으로 로그인만 하면 같은 목록 (연결 링크 필요 없음)", "로그인할 때 이 기기의 예전 목록(연결 링크 열쇠)을 계정으로 자동으로 옮기고, 옮긴 뒤에는 열쇠로 읽을 수 없게 막음", "음성·단축어용 '추가 전용' 주소: 항목을 넣을 수만 있고 목록은 볼 수 없음, 새로 만들면 예전 주소는 못 씀", "로그아웃하면 이 기기의 목록 사본도 지움"] },
   { v: "1.12.0", date: "2026-11-24", notes: ["보드 보기에서 항목을 마우스로 끌어 다른 칸으로 옮기기", "장바구니: 놓은 칸의 구입처로 바뀜 (구입처 미지정 칸 포함)", "할일: 오늘 칸은 오늘, 이번 주 칸은 내일, 나중 칸은 일주일 뒤, 마감없음 칸은 마감 지움 (이미 그 칸 범위면 날짜 유지)", "완료 칸에 놓으면 체크, 완료에서 끌어내면 다시 할 것으로. 옮긴 뒤 되돌리기 가능"] },
   { v: "1.11.0", date: "2026-11-24", notes: ["두 기기에서 거의 동시에 고쳐도 서로 덮어쓰지 않게 항목 단위로 합쳐서 저장 (지운 항목이 되살아나지 않음)", "인터넷 없이 앱을 열었다가 연결되면 자동으로 다시 연결해 올림 (전에는 앱을 다시 열어야 했음)", "홈 화면에 앱으로 설치 가능, 오프라인에서도 열림", "설치한 앱 아이콘에 오늘·지난 할일 개수 배지", "데이터 저장 형식 5번: 항목별 고친 시각(mt), 지운 항목 기록(deleted)"] },
   { v: "1.10.0", date: "2026-11-23", notes: ["큰 화면(900px 이상) 보기 선택: 좁게 / 나란히 / 보드", "나란히: 화면을 넓게 쓰고 남은 것과 완료를 옆에 나란히, 전체 탭은 장바구니와 할일을 옆으로", "보드: 장바구니는 구입처별, 할일은 마감(지남·오늘·이번 주·나중·마감없음)별 칸으로 펼쳐 보기"] },
@@ -1083,6 +1110,7 @@ function itemEl(it, type) {
 }
 
 let toastTimer;
+function notify(msg) { lastRemoved = null; lastArchived = null; lastMoved = null; showToast(msg); } // 되돌리기 없는 알림
 function showToast(msg) {
   $("toastMsg").textContent = msg; $("toast").hidden = false; $("toastUndo").hidden = !(lastRemoved || lastArchived || lastMoved);
   clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, 5000);
@@ -1124,7 +1152,7 @@ async function flushRemote() {
   writing = true; dirty = false; clearTimeout(retryTimer);
   let merged = null, ok = true;
   try { merged = await remoteSave(JSON.parse(JSON.stringify(state))); setSync("synced", "동기화됨"); }
-  catch (e) { ok = false; setSync("local", offlineText()); dirty = true; retryTimer = setTimeout(flushRemote, 15000); }
+  catch (e) { ok = false; dirty = true; if (remoteSave) { setSync("local", offlineText()); retryTimer = setTimeout(flushRemote, 15000); } }
   writing = false;
   // 서버가 다른 기기 변경과 합친 결과를 돌려주면 내 화면에도 합침 (그사이 고친 것은 수정 시각으로 지켜짐)
   if (merged) applyRemote(merged);
@@ -1162,61 +1190,124 @@ async function initClaude() {
   } catch (e) { /* 동기화 없이 동작 */ }
 }
 
-/* --- Netlify: 기기별 열쇠(무작위 문자열)로 내 목록을 찾음. 다른 기기는 연결 링크(#k=열쇠)로 같은 열쇠를 받음 --- */
+/* --- Netlify ---
+   1) Google 로그인(로그인 기능이 켜져 있을 때): 세션 쿠키로 내 계정 목록(/api/list)을 읽고 씀. 열쇠 필요 없음.
+      이 기기에 예전 연결 링크 열쇠가 있으면 로그인할 때 그 목록을 계정으로 옮김(/api/claim).
+   2) 예전 방식: 기기별 열쇠(무작위 문자열)로 내 목록을 찾음. 다른 기기는 연결 링크(#k=열쇠)로 같은 열쇠를 받음.
+      로그인 기능이 켜진 뒤에는 이미 열쇠가 있는 기기만 계속 쓰고, 새 열쇠는 만들지 않음. */
 const KEY_RE = /^[A-Za-z0-9_-]{24,64}$/;
 let listKey = null, lastRemoteAt = 0, pullRemote = null;
+let authOn = false, authUser = null, keyMoved = false;
 /* 서버가 저장할 때마다 1씩 올리는 번호(rev). 없으면(예전 서버 데이터) updatedAt 으로 비교 */
 const remoteStamp = d => d ? (d.rev != null ? "r" + d.rev : "t" + (d.updatedAt || 0)) : "";
 function randomKey() {
   const a = new Uint8Array(24); crypto.getRandomValues(a);
   return btoa(String.fromCharCode(...a)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
-function apiUrl() { return "/api/list?k=" + encodeURIComponent(listKey); }
+const lsGet = k => { try { return localStorage.getItem(STORE_KEY + k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(STORE_KEY + k) : localStorage.setItem(STORE_KEY + k, v); } catch (e) {} };
+function apiUrl() { return syncMode === "account" ? "/api/list" : "/api/list?k=" + encodeURIComponent(listKey); }
 async function fetchRemote() {
-  const r = await fetch(apiUrl(), { cache: "no-store" });
+  const r = await fetch(apiUrl(), { cache: "no-store", credentials: "same-origin" });
   const ct = r.headers.get("content-type") || "";
   if (!ct.includes("json")) throw new Error("no-api");
   if (r.status === 404) return null;
+  if (r.status === 401 || r.status === 410) throw new Error("lost-" + r.status);
   if (!r.ok) throw new Error("http " + r.status);
   return (await r.json()).data || null;
 }
+async function fetchMe() {
+  const r = await fetch("/api/me", { cache: "no-store", credentials: "same-origin" });
+  const ct = r.headers.get("content-type") || "";
+  if (r.status === 404 && !ct.includes("json")) return { enabled: false, user: null }; // 로그인 기능이 없는 예전 서버
+  if (!ct.includes("json")) throw new Error("no-api");
+  if (!r.ok) throw new Error("http " + r.status);
+  return r.json();
+}
+/* 서버 연결이 끊긴 경우: 401 = 로그인 만료, 410 = 이 열쇠의 목록이 계정으로 옮겨짐 */
+function connectionLost(status) {
+  remoteSave = null; remoteReady = false;
+  if (status === 410) { keyMoved = true; listKey = null; lsSet(":key", null); lsSet(":adopt", null); }
+  if (status === 401 && syncMode === "account") { authUser = null; saveAuth(); }
+  syncMode = "local"; updateInfo(); renderAccount();
+  setSync("local", status === 410 ? "로그인하면 동기화돼요" : "다시 로그인해 주세요");
+}
+function saveAuth() { lsSet(":auth", JSON.stringify({ enabled: authOn, user: authUser })); }
+const LOGIN_MSG = { ok: "Google 계정으로 로그인했어요", denied: "이 Google 계정은 이 앱을 쓸 수 없어요 (허용된 계정만)", fail: "로그인하지 못했어요. 잠시 뒤 다시 해 주세요", off: "로그인 기능이 아직 설정되지 않았어요" };
 async function initNetlify() {
   const m = location.hash.match(/k=([A-Za-z0-9_-]{24,64})/);
-  try { listKey = localStorage.getItem(STORE_KEY + ":key"); } catch (e) {}
+  const lm = location.hash.match(/login=(\w+)/);
+  listKey = lsGet(":key");
   let adopted = false;
   if (m && m[1] !== listKey) { listKey = m[1]; adopted = true; }
-  try { if (!m && localStorage.getItem(STORE_KEY + ":adopt")) adopted = true; } catch (e) {} // 오프라인에서 연결 링크를 연 뒤 다시 열었을 때
-  if (m) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
-  if (!listKey || !KEY_RE.test(listKey)) listKey = randomKey();
+  if (!m && lsGet(":adopt")) adopted = true; // 오프라인에서 연결 링크를 연 뒤 다시 열었을 때
+  if (m || lm) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
+  if (listKey && !KEY_RE.test(listKey)) listKey = null;
+  try { const a = JSON.parse(lsGet(":auth")); if (a) { authOn = !!a.enabled; authUser = a.user || null; } } catch (e) {}
+  renderAccount();
+  if (lm && LOGIN_MSG[lm[1]]) setTimeout(() => notify(LOGIN_MSG[lm[1]]), 300);
   connectNetlify(adopted);
 }
 /* 서버에 처음 연결. 인터넷이 안 되면 열쇠는 그대로 두고, 연결되면(또는 20초 뒤) 다시 시도 */
 async function connectNetlify(adopted) {
-  let remote;
-  try { setSync("saving", "불러오는 중…"); remote = await fetchRemote(); }
-  catch (e) {
-    if (e.message === "no-api") { setSync("local", "이 기기에 저장"); listKey = null; return; }
+  let remote, replace = adopted || state.sample;
+  const waitAndRetry = () => {
     setSync("local", offlineText());
-    try { localStorage.setItem(STORE_KEY + ":key", listKey); } catch (e2) {}
-    if (adopted) { try { localStorage.setItem(STORE_KEY + ":adopt", "1"); } catch (e2) {} }
+    if (listKey) lsSet(":key", listKey);
+    if (adopted) lsSet(":adopt", "1");
     let t = null;
     const retry = () => { window.removeEventListener("online", retry); clearTimeout(t); connectNetlify(adopted); };
     window.addEventListener("online", retry); t = setTimeout(retry, 20000);
-    return;
+  };
+  try {
+    setSync("saving", "불러오는 중…");
+    const me = await fetchMe();
+    authOn = !!me.enabled; authUser = authOn ? me.user || null : null; saveAuth();
+    if (authUser) {
+      // 다른 계정이 쓰던 기기면 섞지 않고 내 계정 목록으로 바꿈
+      const owner = lsGet(":owner");
+      if (owner && owner !== authUser.id) replace = true;
+      lsSet(":owner", authUser.id);
+      if (listKey) {
+        // 예전 연결 링크 목록을 내 계정으로 옮김 (옮긴 뒤 열쇠로는 더 못 읽음)
+        const r = await fetch("/api/claim", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ k: listKey }) });
+        const b = await r.json().catch(() => ({}));
+        if (r.ok && !b.already) setTimeout(() => notify("이 목록을 내 Google 계정으로 옮겼어요"), 900);
+        if (r.status === 409 && b.error === "moved_elsewhere") setTimeout(() => notify("연결 링크의 목록은 이미 다른 계정으로 옮겨졌어요"), 900);
+        if (r.ok || r.status === 404 || (r.status === 409 && b.error === "moved_elsewhere") || r.status === 400) { listKey = null; lsSet(":key", null); lsSet(":adopt", null); }
+        else throw new Error("claim " + r.status);
+        replace = replace && !adopted; // 연결 링크로 받은 목록은 방금 계정에 합쳐졌으니 이 기기 목록과도 합침
+      }
+      syncMode = "account";
+    } else if (authOn && !listKey) {
+      // 로그인 기능이 켜졌는데 로그인 안 함 + 예전 열쇠도 없음 → 이 기기에만 저장
+      syncMode = "local"; updateInfo(); renderAccount(); setSync("local", "로그인하면 동기화돼요");
+      if (state.sample) { state = blankState(); saveLocal(); render(); }
+      return;
+    } else {
+      if (!listKey) listKey = randomKey();
+      syncMode = "netlify";
+    }
+    remote = await fetchRemote();
+  } catch (e) {
+    if (e.message === "no-api") { setSync("local", "이 기기에 저장"); listKey = null; syncMode = "local"; return; }
+    if (e.message.startsWith("lost-")) { connectionLost(Number(e.message.slice(5))); return; }
+    waitAndRetry(); return;
   }
-  try { localStorage.setItem(STORE_KEY + ":key", listKey); localStorage.removeItem(STORE_KEY + ":adopt"); } catch (e) {}
+  keyMoved = false;
+  if (syncMode === "netlify") { lsSet(":key", listKey); lsSet(":adopt", null); }
   remoteSave = async d => {
-    const r = await fetch(apiUrl(), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(d) });
+    const r = await fetch(apiUrl(), { method: "PUT", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(d) });
+    if (r.status === 401 || r.status === 410) { connectionLost(r.status); throw new Error("lost"); }
     if (!r.ok) throw new Error("http " + r.status);
     const body = await r.json().catch(() => ({}));
     lastRemoteAt = body.data ? remoteStamp(body.data) : lastRemoteAt;
     return body.data || null;
   };
-  syncMode = "netlify"; remoteReady = true; updateInfo();
+  remoteReady = true; updateInfo(); renderAccount();
   if (remote) {
     const legacy = !(Number(remote.version) >= 5);
-    // 새 기기 연결·예시 상태면 서버 목록으로 바꿈. 예전 형식(합치기 정보 없음)이면 예전처럼 더 최근 쪽을 고름
-    const replace = adopted || state.sample;
+    // 새 기기 연결·예시 상태·다른 계정이 쓰던 기기면 서버 목록으로 바꿈. 예전 형식(합치기 정보 없음)이면 예전처럼 더 최근 쪽을 고름
     lastRemoteAt = remoteStamp(remote);
     if (replace || !legacy || (remote.updatedAt || 0) >= (state.updatedAt || 0)) applyRemote(remote, replace || legacy);
     else if (Array.isArray(remote.inbox)) { state.inbox = JSON.parse(JSON.stringify(remote.inbox)); processInbox(); }
@@ -1224,33 +1315,91 @@ async function connectNetlify(adopted) {
     // 이 기기에만 있던 변경(오프라인에서 적은 것 등)이 있으면 올림. 서버가 합쳐 줌
     if (!replace && JSON.stringify(normalize(JSON.parse(JSON.stringify(remote))).lists) !== JSON.stringify(state.lists)) { dirty = true; flushRemote(); }
   } else {
-    if (state.sample) { state = blankState(); saveLocal(); render(); }
+    if (state.sample || replace) { state = blankState(); saveLocal(); render(); }
     dirty = true; flushRemote();
   }
   if (pullRemote) return;
   // 다른 기기에서 바꾼 내용 받아오기: 화면을 다시 볼 때와 20초마다
   pullRemote = async () => {
-    if (document.hidden || writing || dirty || editing || dragging) return;
+    if (!remoteReady || document.hidden || writing || dirty || editing || dragging) return;
     try {
       const d = await fetchRemote();
       // 기기·서버 시계가 달라도 놓치지 않게: 시각이 "다르면" 받아옴
       const newInbox = d && (d.inbox || []).some(e => e && !(state.inboxDone || []).includes(e.id));
       if (d && (remoteStamp(d) !== lastRemoteAt || newInbox)) { lastRemoteAt = remoteStamp(d); applyRemote(d, !(Number(d.version) >= 5)); }
       setSync("synced", "동기화됨");
-    } catch (e) { setSync("local", offlineText()); }
+    } catch (e) {
+      if (e.message.startsWith("lost-")) connectionLost(Number(e.message.slice(5)));
+      else setSync("local", offlineText());
+    }
   };
   document.addEventListener("visibilitychange", pullRemote);
   window.addEventListener("focus", pullRemote);
   setInterval(pullRemote, 20000);
 }
 
+/* ===== 계정 (Google 로그인) ===== */
+function renderAccount() {
+  const out = authOn && !authUser;
+  $("loginNote").hidden = !out;
+  if (out) $("loginNoteText").textContent = keyMoved
+    ? "이 목록은 Google 계정으로 옮겨졌어요. 로그인하면 다시 보여요."
+    : listKey && syncMode === "netlify"
+      ? "Google로 로그인하면 지금 목록이 내 계정으로 옮겨져서, 나만 볼 수 있게 안전하게 저장돼요."
+      : "Google로 로그인하면 내 계정에 안전하게 저장되고, 휴대폰·PC 어디서든 같은 목록을 봐요. 지금은 이 기기에만 저장돼요.";
+  $("accountBox").hidden = !authOn;
+  $("acctOut").hidden = !!authUser;
+  $("acctIn").hidden = !authUser;
+  if (authUser) {
+    $("acctName").textContent = authUser.name || authUser.email;
+    $("acctEmail").textContent = authUser.name ? authUser.email : "";
+    const pic = $("acctPic");
+    if (authUser.picture && /^https:\/\//.test(authUser.picture)) { pic.src = authUser.picture; pic.hidden = false; } else pic.hidden = true;
+  }
+}
+const addUrl = key => location.origin + "/api/add?k=" + key + "&text=";
+async function loadAddKey(create) {
+  if (!authUser || syncMode !== "account") return;
+  $("addStatus").textContent = create ? "만드는 중…" : "";
+  try {
+    const r = await fetch("/api/addkey", { method: create ? "POST" : "GET", credentials: "same-origin", cache: "no-store" });
+    if (r.status === 401) { connectionLost(401); return; }
+    const b = await r.json();
+    if (!b.key && !create) return loadAddKey(true);
+    $("addLink").value = addUrl(b.key);
+    $("addStatus").textContent = create ? "새 주소를 만들었어요. 음성·단축어 설정도 바꿔 주세요." : "";
+  } catch (e) { $("addStatus").textContent = "불러오지 못했어요 (인터넷 연결 확인)"; }
+}
+let newKeyArmed = false, logoutArmed = false;
+$("newAddKey").addEventListener("click", () => {
+  if (!newKeyArmed) { newKeyArmed = true; $("addStatus").textContent = "한 번 더 누르면 새로 만들어요"; setTimeout(() => { newKeyArmed = false; }, 4000); return; }
+  newKeyArmed = false; loadAddKey(true);
+});
+$("copyAdd").addEventListener("click", async () => {
+  const inp = $("addLink"); if (!inp.value) return;
+  try { await navigator.clipboard.writeText(inp.value); $("addStatus").textContent = "복사했어요"; }
+  catch (e) { inp.select(); $("addStatus").textContent = "선택해 두었어요. 길게 눌러 복사하세요."; }
+});
+$("logoutBtn").addEventListener("click", async () => {
+  if (!logoutArmed) {
+    logoutArmed = true; $("logoutHint").textContent = "한 번 더 누르면 로그아웃해요. 이 기기에 있는 목록 사본도 지워요 (계정에는 그대로 남아요).";
+    setTimeout(() => { logoutArmed = false; $("logoutHint").textContent = ""; }, 5000); return;
+  }
+  $("logoutHint").textContent = "로그아웃하는 중…";
+  if (dirty && remoteSave) { clearTimeout(writeTimer); await flushRemote(); }
+  try { await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }); } catch (e) {}
+  for (const k of ["", ":prev", ":key", ":adopt", ":auth", ":owner"]) lsSet(k, null);
+  location.replace(location.pathname);
+});
+
 /* ===== 정보 팝업 ===== */
 function updateInfo() {
   $("storeWhere").textContent =
+    syncMode === "account" ? `내 Google 계정(${authUser && authUser.email}) 전용 공간(Netlify Blobs)에 저장해요. 로그인한 본인만 읽고 쓸 수 있고, 앱을 다시 배포해도 그대로예요.` :
     syncMode === "netlify" ? "Netlify 서버 저장소(Netlify Blobs)에 JSON 파일로 저장해요. 앱을 다시 배포해도 이 저장소는 그대로예요." :
     syncMode === "claude" ? "내 claude.ai 계정 저장소에 저장해요. 휴대폰과 PC가 같은 목록을 봐요." :
     "이 기기의 브라우저 저장소에만 저장해요.";
-  $("connectBox").hidden = syncMode !== "netlify";
+  $("connectBox").hidden = syncMode !== "netlify" || authOn; // 로그인 기능이 켜지면 열쇠 링크는 더 나눠 주지 않음
   if (syncMode === "netlify") $("connectLink").value = location.origin + location.pathname + "#k=" + listKey;
 }
 /* ===== 완료 기록 ===== */
@@ -1298,7 +1447,7 @@ $("histClose").addEventListener("click", closeHist);
 $("histModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeHist(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("histModal").hidden) closeHist(); });
 
-function openInfo() { updateInfo(); updateInstall(); $("infoModal").hidden = false; $("infoClose").focus(); }
+function openInfo() { updateInfo(); updateInstall(); renderAccount(); if (authUser && !$("addLink").value) loadAddKey(false); $("infoModal").hidden = false; $("infoClose").focus(); }
 function closeInfo() { $("infoModal").hidden = true; $("verBtn").focus(); }
 $("verBtn").addEventListener("click", openInfo);
 $("infoClose").addEventListener("click", closeInfo);
@@ -1400,7 +1549,7 @@ let installEvt = null;
 function updateInstall() {
   const box = $("installBox"), btn = $("installBtn"), txt = $("installText");
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  box.hidden = syncMode !== "netlify" || standalone() || (!installEvt && !ios);
+  box.hidden = (syncMode !== "netlify" && syncMode !== "account") || standalone() || (!installEvt && !ios);
   btn.hidden = !installEvt;
   txt.textContent = installEvt
     ? "홈 화면에 앱으로 추가하면 주소창 없이 바로 열리고, 인터넷이 안 될 때도 열려요."
