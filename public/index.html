@@ -169,7 +169,7 @@ li.done .qty { color: var(--done); background: transparent; }
 .hday { margin-top: 14px; }
 .hday h3 { font-size: 13px; color: var(--muted); margin: 0 0 6px; font-variant-numeric: tabular-nums; }
 .hday ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.hday li.hrow { display: flex; gap: 10px; align-items: center; font-size: 14.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px 7px 12px; }
+.hday li.hrow { display: flex; gap: 10px; align-items: center; font-size: 14.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px 7px 10px; }
 .hmain { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .htop { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
 .htext { overflow-wrap: anywhere; }
@@ -180,6 +180,23 @@ li.done .qty { color: var(--done); background: transparent; }
 .readd { flex: none; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border: 0; border-radius: 999px; padding: 6px 11px; cursor: pointer; white-space: nowrap; }
 .readd:disabled { color: var(--muted); background: transparent; font-weight: 500; cursor: default; }
 .readd:focus-visible, .seg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hsel { flex: none; width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--accent); background: transparent; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.hsel svg { width: 15px; height: 15px; stroke: var(--accent-ink); opacity: 0; }
+.hsel[aria-checked="true"] { background: var(--accent); }
+.hsel[aria-checked="true"] svg { opacity: 1; }
+.hsel:disabled { border-color: var(--line); cursor: default; }
+.hsel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hday li.hrow.picked { border-color: var(--accent); background: var(--accent-soft); }
+.hday li.hrow .hmain { cursor: pointer; }
+.hdayhead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 6px; }
+.hdayhead h3 { margin: 0; }
+.selall { font: inherit; font-size: 12.5px; color: var(--accent); background: none; border: 0; padding: 2px 0; cursor: pointer; }
+.selall:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.selbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px 12px 18px; border-top: 1px solid var(--line); background: var(--surface); }
+.selbar[hidden] { display: none; }
+.selbar .selcount { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; }
+.selbar .selclear { font: inherit; font-size: 13px; color: var(--muted); background: none; border: 0; padding: 6px 4px; cursor: pointer; }
+.selbar .selgo { font: inherit; font-size: 14px; font-weight: 700; color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
 .histbar { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .segs { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--surface); }
 .seg { font: inherit; font-size: 13px; border: 0; background: none; color: var(--muted); padding: 3px 11px; border-radius: 999px; cursor: pointer; }
@@ -329,6 +346,7 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
       <div class="stats" id="histStats"></div>
       <div id="histList"></div>
     </div>
+    <div class="selbar" id="histSelBar" hidden><span class="selcount" id="histSelCount"></span><button class="selclear" id="histSelClear" type="button">선택 해제</button><button class="selgo" id="histSelGo" type="button"></button></div>
   </div>
 </div>
 <div class="modal" id="helpModal" hidden>
@@ -369,6 +387,7 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
           <li>체크한 항목은 아래 접힌 칸(담은 것·완료)으로 내려가요. 다시 누르면 되돌아와요.</li>
           <li>7일이 지나거나 <b>기록으로 보내기</b>를 누르면 목록에서 빠지고, 오른쪽 위 <b>완료 기록</b>에 카드로 남아요. 지워지지 않아요.</li>
           <li>완료 기록의 <b>자주 한 것</b>에서 몇 번 했는지 보고, 카드의 <b>다시 추가</b>로 바로 목록에 넣을 수 있어요.</li>
+          <li>반복하는 일은 완료 기록에서 앞의 네모를 눌러 여러 개 고른 뒤 아래 <b>다시 넣기</b>로 한 번에 살려요. 예전 기록은 지워지지 않고 그대로 남아요.</li>
         </ul>
       </section>
       <section class="prose">
@@ -517,8 +536,9 @@ const LIST_TYPES = {
 /* ===== 앱 버전 =====
    앱을 고칠 때마다 APP_VERSION 을 올리고 CHANGELOG 맨 위에 한 줄 추가합니다.
    앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
-const APP_VERSION = "1.15.2";
+const APP_VERSION = "1.16.0";
 const CHANGELOG = [
+  { v: "1.16.0", date: "2026-11-24", notes: ["완료 기록에서 항목 앞 네모를 눌러 여러 개 고르고 \"할일에 다시 넣기\"로 한 번에 살리기", "날짜·묶음마다 \"모두 고르기\" (예: 자주 한 것 → 여러 번 한 것 모두)", "다시 넣어도 예전 완료 기록은 그대로 남고, 복사본만 새로 목록에 들어감 (이미 목록에 있는 것은 고를 수 없음)"] },
   { v: "1.15.2", date: "2026-11-24", notes: ["로그인하면 위쪽에 내 Google 계정(사진·이름) 표시, 누르면 내 계정 정보"] },
   { v: "1.15.1", date: "2026-11-24", notes: ["오른쪽 위 \"사용법\" 버튼: 적는 법, 큰 화면·끌어 옮기기, 로그인, 홈 화면 설치, 음성 추가, 꿀팁을 한 화면에"] },
   { v: "1.15.0", date: "2026-11-24", notes: ["완료 기록을 한 줄 글자 대신 항목별 카드로: 목록·구입처·수량·반복·마감·몇 번 했는지", "\"자주 한 것\" 보기: 같은 일을 묶어 횟수, 마지막 날짜, 보통 며칠마다 했는지", "기록에서 \"+ 다시 추가\"를 누르면 같은 구입처·수량으로 목록에 바로 다시 들어감 (이미 있으면 \"목록에 있음\")"] },
@@ -1602,12 +1622,74 @@ const histKey = (it, type) => type + "|" + (it.store || "").toLowerCase() + "|" 
 const shortDate = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
 const openTwin = (it, type) => state.lists[type].items.find(i => !i.done && i.text === it.text && (i.store || "") === (it.store || ""));
 /* 기록에 있는 항목을 같은 목록에 새로 넣음 (구입처·수량·반복은 그대로, 마감은 반복이면 다음 회차, 아니면 비움) */
-function readdItem(it, type) {
-  if (openTwin(it, type)) { notify(`'${it.text}'은(는) 이미 ${LIST_TYPES[type].label}에 있어요`); return; }
+/* 기록의 원래 항목은 건드리지 않고 복사본만 새로 만듦 */
+function copyFromRecord(it, type) {
   const repeat = LIST_TYPES[type].parseDue && it.repeat ? it.repeat : null;
   const due = repeat ? ymd(nextOccurrence(repeat, todayStart(), true)) : "";
   state.lists[type].items.unshift({ id: uid(), store: it.store || "", due, repeat, text: it.text, qty: it.qty || "", done: false, createdAt: Date.now(), mt: Date.now() });
+}
+function readdItem(it, type) {
+  if (openTwin(it, type)) { notify(`'${it.text}'은(는) 이미 ${LIST_TYPES[type].label}에 있어요`); return; }
+  copyFromRecord(it, type); histSel.delete(histKey(it, type));
   commit(); renderHistory(); notify(`'${it.text}'을(를) ${LIST_TYPES[type].label}에 다시 넣었어요`);
+}
+/* ===== 완료 기록에서 여러 개 골라 한 번에 다시 넣기 =====
+   같은 일(목록·구입처·이름)은 하나로 셈. 이미 목록에 있는 일은 고를 수 없음 */
+const histSel = new Map(); // histKey -> { it, type }
+function toggleSel(it, type) {
+  const k = histKey(it, type);
+  if (histSel.has(k)) histSel.delete(k);
+  else if (!openTwin(it, type)) histSel.set(k, { it, type });
+  renderHistory();
+}
+function setSelMany(rows, on) {
+  for (const it of rows) { const k = histKey(it, it._type); if (on && !openTwin(it, it._type)) histSel.set(k, { it, type: it._type }); else if (!on) histSel.delete(k); }
+  renderHistory();
+}
+function readdSelected() {
+  let added = 0, skipped = 0; const names = [];
+  for (const { it, type } of histSel.values()) {
+    if (openTwin(it, type)) { skipped++; continue; }
+    copyFromRecord(it, type); added++; names.push(it.text);
+  }
+  histSel.clear();
+  if (!added) { renderHistory(); notify("고른 항목이 모두 이미 목록에 있어요"); return; }
+  commit(); renderHistory();
+  notify((added === 1 ? `'${names[0]}'을(를) 다시 넣었어요` : `${added}개를 다시 넣었어요`) + (skipped ? ` (${skipped}개는 이미 있음)` : ""));
+}
+function renderSelBar() {
+  // 지금 목록에 이미 들어간 것은 선택에서 뺌 (다른 기기에서 추가된 경우 등)
+  for (const [k, { it, type }] of histSel) if (openTwin(it, type)) histSel.delete(k);
+  const n = histSel.size; $("histSelBar").hidden = !n;
+  if (!n) return;
+  const types = new Set([...histSel.values()].map(v => v.type));
+  $("histSelCount").textContent = `${n}개 선택`;
+  $("histSelGo").textContent = types.size === 1 ? `${LIST_TYPES[[...types][0]].label}에 다시 넣기` : "목록에 다시 넣기";
+}
+$("histSelClear").addEventListener("click", () => { histSel.clear(); renderHistory(); });
+$("histSelGo").addEventListener("click", readdSelected);
+const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function selBox(it, type) {
+  const b = document.createElement("button"); b.type = "button"; b.className = "hsel"; b.setAttribute("role", "checkbox");
+  const has = !!openTwin(it, type), on = histSel.has(histKey(it, type));
+  b.setAttribute("aria-checked", String(on)); b.disabled = has; b.innerHTML = CHECK_SVG;
+  b.setAttribute("aria-label", has ? `${it.text}: 이미 목록에 있음` : `${it.text} 고르기`);
+  b.onclick = () => toggleSel(it, type);
+  return b;
+}
+/* 날짜·묶음 제목 줄 + 그 안의 다시 넣을 수 있는 것 모두 고르기/해제 */
+function hdayHead(title, rows) {
+  const head = document.createElement("div"); head.className = "hdayhead";
+  const h = document.createElement("h3"); h.textContent = title; head.appendChild(h);
+  const can = rows.filter(it => !openTwin(it, it._type));
+  if (can.length > 1) {
+    const allOn = can.every(it => histSel.has(histKey(it, it._type)));
+    const b = document.createElement("button"); b.type = "button"; b.className = "selall";
+    b.textContent = allOn ? "모두 해제" : "모두 고르기";
+    b.onclick = () => setSelMany(can, !allOn);
+    head.appendChild(b);
+  }
+  return head;
 }
 function readdBtn(it, type) {
   const b = document.createElement("button"); b.type = "button"; b.className = "readd";
@@ -1620,8 +1702,9 @@ function readdBtn(it, type) {
 function tag(cls, text) { const s = document.createElement("span"); s.className = cls; s.textContent = text; return s; }
 /* 한 줄: [목록] [구입처] 이름 수량 ↻반복 · 부가 정보 ... [다시 추가] */
 function histRow(it, type, metaBits) {
-  const li = document.createElement("li"); li.className = "hrow";
+  const li = document.createElement("li"); li.className = "hrow" + (histSel.has(histKey(it, type)) ? " picked" : "");
   const main = document.createElement("div"); main.className = "hmain";
+  main.onclick = () => toggleSel(it, type);
   const top = document.createElement("div"); top.className = "htop";
   if (!histFilter) top.appendChild(tag("store kind", LIST_TYPES[type].label));
   if (it.store) top.appendChild(tag("store", it.store));
@@ -1635,7 +1718,7 @@ function histRow(it, type, metaBits) {
     for (const b of bits) meta.appendChild(typeof b === "string" ? tag("", b) : b);
     main.appendChild(meta);
   }
-  li.append(main, readdBtn(it, type));
+  li.append(selBox(it, type), main, readdBtn(it, type));
   return li;
 }
 function renderHistory() {
@@ -1666,6 +1749,7 @@ function renderHistory() {
   const stats = [["오늘", cnt(today)], ["이번 주", cnt(weekStart)], ["전체", items.length]];
   const box = $("histStats"); box.innerHTML = "";
   for (const [l, n] of stats) { const d = document.createElement("div"); d.className = "stat"; d.innerHTML = "<b></b><span></span>"; d.children[0].textContent = n; d.children[1].textContent = l; box.appendChild(d); }
+  renderSelBar();
   const out = $("histList"); out.innerHTML = "";
   if (!items.length) { const p = document.createElement("p"); p.className = "hint"; p.textContent = "아직 끝낸 항목이 없어요."; out.appendChild(p); return; }
 
@@ -1675,8 +1759,7 @@ function renderHistory() {
     const section = (title, list) => {
       if (!list.length) return;
       const sec = document.createElement("div"); sec.className = "hday";
-      const h = document.createElement("h3"); h.textContent = `${title} · ${list.length}`;
-      const ul = document.createElement("ul"); sec.append(h, ul); out.appendChild(sec);
+      const ul = document.createElement("ul"); sec.append(hdayHead(`${title} · ${list.length}`, list.map(g => g[0])), ul); out.appendChild(sec);
       for (const g of list) {
         const last = g[0];
         let every = "";
@@ -1698,8 +1781,8 @@ function renderHistory() {
     const d = new Date(it.doneAt); const key = ymd(d);
     if (key !== cur) {
       cur = key; const sec = document.createElement("div"); sec.className = "hday";
-      const h = document.createElement("h3"); h.textContent = `${d.getMonth() + 1}/${d.getDate()} (${WD[d.getDay()]})`;
-      ul = document.createElement("ul"); sec.append(h, ul); out.appendChild(sec);
+      ul = document.createElement("ul");
+      sec.append(hdayHead(`${d.getMonth() + 1}/${d.getDate()} (${WD[d.getDay()]})`, items.filter(i => ymd(new Date(i.doneAt)) === key)), ul); out.appendChild(sec);
     }
     const n = groups.get(histKey(it, it._type)).length;
     const bits = [];
@@ -1710,7 +1793,7 @@ function renderHistory() {
   }
 }
 function openHist() { renderHistory(); $("histModal").hidden = false; $("histClose").focus(); }
-function closeHist() { $("histModal").hidden = true; $("histBtn").focus(); }
+function closeHist() { histSel.clear(); $("histModal").hidden = true; $("histBtn").focus(); }
 $("histBtn").addEventListener("click", openHist);
 $("histClose").addEventListener("click", closeHist);
 $("histModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeHist(); });
