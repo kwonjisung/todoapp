@@ -65,8 +65,8 @@ header {
   background: var(--bg); padding-block: 14px 10px;
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px;
 }
-.titlebar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-h1 { font-family: var(--font-display); font-weight: 400; font-size: 30px; margin: 0; letter-spacing: 0.5px; }
+.titlebar { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 30px; margin: 0; letter-spacing: 0.5px; white-space: nowrap; }
 .sync { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--done); }
 .sync[data-state="synced"]::before { background: var(--accent); }
@@ -159,6 +159,7 @@ li.done .qty { color: var(--done); background: transparent; }
   font: inherit; font-size: 12.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
   border: 0; padding: 2px 9px; border-radius: 999px; cursor: pointer; font-variant-numeric: tabular-nums;
 }
+.titlebar .ver { white-space: nowrap; }
 .ver:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ghostver { background: transparent; border: 1px solid var(--line); color: var(--muted); font-weight: 500; }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -168,9 +169,21 @@ li.done .qty { color: var(--done); background: transparent; }
 .hday { margin-top: 14px; }
 .hday h3 { font-size: 13px; color: var(--muted); margin: 0 0 6px; font-variant-numeric: tabular-nums; }
 .hday ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.hday li { display: flex; gap: 8px; align-items: baseline; font-size: 14.5px; }
-.hday li::before { content: "✔"; color: var(--accent); font-size: 12px; }
-.hday .late { font-size: 12px; color: var(--danger); }
+.hday li.hrow { display: flex; gap: 10px; align-items: center; font-size: 14.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px 7px 12px; }
+.hmain { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.htop { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.htext { overflow-wrap: anywhere; }
+.store.kind { color: var(--accent); border-color: var(--accent-soft); background: var(--accent-soft); }
+.hmeta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hmeta .hcount { color: var(--accent); font-weight: 700; }
+.hmeta .late { color: var(--danger); }
+.readd { flex: none; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border: 0; border-radius: 999px; padding: 6px 11px; cursor: pointer; white-space: nowrap; }
+.readd:disabled { color: var(--muted); background: transparent; font-weight: 500; cursor: default; }
+.readd:focus-visible, .seg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.histbar { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.segs { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--surface); }
+.seg { font: inherit; font-size: 13px; border: 0; background: none; color: var(--muted); padding: 3px 11px; border-radius: 999px; cursor: pointer; }
+.seg[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .donehead { font: inherit; display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; cursor: pointer; color: var(--muted); }
 .donehead:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .donehead .chev { font-size: 13px; line-height: 1; transition: transform .15s; }
@@ -233,7 +246,7 @@ li.done .qty { color: var(--done); background: transparent; }
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   background: var(--fg); color: var(--bg); border-radius: 999px; padding: 8px 8px 8px 16px;
-  display: flex; align-items: center; gap: 10px; font-size: 14px; max-width: calc(100% - 32px); z-index: 20;
+  display: flex; align-items: center; gap: 10px; font-size: 14px; max-width: calc(100% - 32px); z-index: 40; /* 기록 팝업 위에도 보이게 */
 }
 .toast button { font: inherit; font-weight: 700; color: var(--accent); background: var(--bg); border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
 @media (prefers-reduced-motion: no-preference) { li.item { transition: background .15s; } }
@@ -288,7 +301,7 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
   <header>
     <div class="titlebar">
       <h1 id="title">장바구니</h1>
-      <span class="right"><span class="layoutsw" id="layoutSw" role="group" aria-label="큰 화면 보기"></span><span class="sync" id="sync" data-state="local">이 기기에 저장</span><button class="ver ghostver" id="histBtn" type="button" aria-haspopup="dialog">완료 기록</button><button class="ver" id="verBtn" type="button" aria-haspopup="dialog"></button></span>
+      <span class="right"><span class="layoutsw" id="layoutSw" role="group" aria-label="큰 화면 보기"></span><span class="sync" id="sync" data-state="local">이 기기에 저장</span><button class="ver ghostver" id="helpBtn" type="button" aria-haspopup="dialog">사용법</button><button class="ver ghostver" id="histBtn" type="button" aria-haspopup="dialog">완료 기록</button><button class="ver" id="verBtn" type="button" aria-haspopup="dialog"></button></span>
     </div>
     <nav class="tabs" id="tabs" role="tablist" hidden></nav>
     <div class="add" id="addForm">
@@ -312,9 +325,94 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
       <button class="icon" id="histClose" type="button" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="sheetbody">
-      <div class="filters" id="histFilter" role="group" aria-label="기록 종류"></div>
+      <div class="histbar"><div class="filters" id="histFilter" role="group" aria-label="기록 종류"></div><div class="segs" id="histView" role="group" aria-label="보는 방식"></div></div>
       <div class="stats" id="histStats"></div>
       <div id="histList"></div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="helpModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="sheethead">
+      <h2 id="helpTitle">사용법</h2>
+      <button class="icon" id="helpClose" type="button" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="sheetbody">
+      <section class="prose">
+        <h3>기본</h3>
+        <ul>
+          <li>위 칸에 적고 <b>Enter</b>(또는 추가). 왼쪽 동그라미를 누르면 체크, 글자를 누르면 고치기, 오른쪽 X는 지우기예요.</li>
+          <li>잘못 지우거나 체크했으면 아래에 뜨는 <b>되돌리기</b>를 누르세요.</li>
+          <li>탭: <b>전체</b>는 둘 다 한눈에, <b>장바구니</b>·<b>할일</b>은 하나씩. 전체 탭에서는 입력칸 왼쪽에서 어느 목록에 넣을지 골라요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>장바구니 적는 법</h3>
+        <ul>
+          <li><b>다이소 우유 2개</b> → 구입처 다이소, 우유, 수량 2개로 나눠져요.</li>
+          <li>앞 단어가 아는 가게(다이소, 이마트, 쿠팡, 편의점, 약국, 주유소, 철물점 등이나 한 번 쓴 가게)이거나 <b>동네마트</b>, <b>행복약국</b>, <b>SK주유소</b>처럼 가게 이름으로 끝나면 구입처로 읽어요.</li>
+          <li>처음 쓰는 가게는 <b>@동네마트 두부</b> 또는 <b>동네마트: 두부</b>. 다음부터는 @ 없이 "동네마트 두부"만 써도 돼요.</li>
+          <li>구입처 버튼을 누르면 그 가게에서 살 것만 보여요. 그 상태로 적으면 자동으로 그 가게 항목이 돼요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>할일 적는 법</h3>
+        <ul>
+          <li>앞에 날짜를 쓰면 마감일: <b>오늘 세차</b>, <b>내일 병원</b>, <b>11/17 관리비</b>, <b>11월 17일 회의</b>. 날짜가 없으면 마감없음.</li>
+          <li>반복: <b>매일 약 먹기</b>, <b>매주 월 분리수거</b>, <b>매월 15일 관리비</b>. 완료하면 다음 날짜로 새로 생겨요.</li>
+          <li>마감이 가까운 순서로 정렬되고, 지난 할일은 빨갛게 보여요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>끝낸 것과 완료 기록</h3>
+        <ul>
+          <li>체크한 항목은 아래 접힌 칸(담은 것·완료)으로 내려가요. 다시 누르면 되돌아와요.</li>
+          <li>7일이 지나거나 <b>기록으로 보내기</b>를 누르면 목록에서 빠지고, 오른쪽 위 <b>완료 기록</b>에 카드로 남아요. 지워지지 않아요.</li>
+          <li>완료 기록의 <b>자주 한 것</b>에서 몇 번 했는지 보고, 카드의 <b>다시 추가</b>로 바로 목록에 넣을 수 있어요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>PC·태블릿 큰 화면</h3>
+        <ul>
+          <li>화면이 넓으면 오른쪽 위에서 <b>좁게 / 나란히 / 보드</b>를 고를 수 있어요.</li>
+          <li><b>보드</b>는 가게별·마감별 칸으로 펼쳐져요. 항목을 마우스로 끌어 다른 칸에 놓으면 구입처나 마감일이 바뀌고, 완료 칸에 놓으면 체크돼요.</li>
+          <li><b>전체</b> 탭(보드·나란히)에서는 장바구니 ↔ 할일 사이로도 끌어 옮길 수 있어요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>로그인과 여러 기기</h3>
+        <ul>
+          <li>오른쪽 위 버전 표시 → <b>Google로 로그인</b>. 휴대폰·PC 어디서든 같은 계정으로 로그인하면 같은 목록이에요.</li>
+          <li>로그인 전에 쓰던 목록은 로그인하면 자동으로 계정으로 옮겨져요.</li>
+          <li>로그인하면 위쪽에 내 사진과 이름(휴대폰은 "● 로그인됨" 줄)이 보여요. 누르면 내 계정과 로그아웃.</li>
+          <li>두 기기에서 동시에 고쳐도 서로 덮어쓰지 않고 합쳐져요. 오른쪽 위가 <b>동기화됨</b>이면 저장 끝.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>휴대폰 홈 화면에 설치</h3>
+        <ul>
+          <li>안드로이드: 버전 표시 → <b>앱으로 설치</b> (또는 Chrome 메뉴 → 홈 화면에 추가).</li>
+          <li>아이폰: Safari 아래 공유 버튼 → <b>홈 화면에 추가</b>.</li>
+          <li>설치하면 매장처럼 인터넷이 약해도 열리고, 아이콘에 오늘·지난 할일 개수가 떠요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>말로 추가하기 (안드로이드)</h3>
+        <ul>
+          <li>버전 표시 → 내 계정 → <b>음성·단축어용 추가 주소</b>를 복사해 MacroDroid에 넣어요. 자세한 설정은 저장소의 docs/voice-macrodroid.md에 있어요.</li>
+          <li>말할 때도 적을 때와 같아요. 쉼표나 "그리고"로 여러 개: "우유, 계란 1판 그리고 대파"</li>
+          <li>앱이 열려 있으면 20초 안에, 아니면 다음에 열 때 목록에 들어와요.</li>
+        </ul>
+      </section>
+      <section class="prose">
+        <h3>꿀팁</h3>
+        <ul>
+          <li>장바구니 탭 입력칸 아래 <b>+ 우유</b> 같은 최근 항목을 누르면 바로 다시 담겨요.</li>
+          <li>장 보러 가기 전에 구입처 버튼으로 그 가게 것만 보면 빠뜨리지 않아요.</li>
+          <li>매번 하는 일은 반복 할일로 한 번만 적어 두세요.</li>
+          <li>PC에서는 보드로 한 주를 정리하고, 휴대폰에서는 체크만 하면 편해요.</li>
+        </ul>
+      </section>
     </div>
   </div>
 </div>
@@ -362,7 +460,7 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
           <li><b>두 기기에서 동시에 고쳐도 안전</b>: 항목마다 고친 시각을 기억해서, 휴대폰과 PC에서 거의 동시에 바꿔도 서로의 변경을 덮어쓰지 않고 합쳐요. 지운 항목도 다른 기기에서 다시 살아나지 않아요.</li>
           <li><b>인터넷이 끊겨도</b>: 매장 안처럼 신호가 약해도 앱이 열리고, 적거나 체크한 건 기기에 저장됐다가 연결되면 바로 올라가요.</li>
           <li><b>업데이트해도 안전</b>: 데이터에 저장 형식 번호가 붙어 있어서, 앱이 형식을 바꾸면 열 때 자동으로 변환해요. 모르는 항목은 지우지 않아요.</li>
-          <li><b>구입처 인식</b>: 맨 앞 단어가 아는 가게(다이소, 이마트, 쿠팡 등이나 한 번 쓴 가게)일 때만 구입처로 읽어요. 처음 쓰는 가게는 "@동네마트 두부"처럼 적으면 기억해요.</li>
+          <li><b>구입처 인식</b>: 맨 앞 단어가 아는 가게(다이소, 이마트, 쿠팡, 주유소, 철물점 등이나 한 번 쓴 가게)이거나 "동네마트", "행복약국", "SK주유소"처럼 가게 이름으로 끝날 때 구입처로 읽어요. 그 밖의 가게는 "@단골집 두부"처럼 적으면 기억해요.</li>
         </ul>
       </section>
       <section class="prose">
@@ -422,6 +520,9 @@ const LIST_TYPES = {
 const APP_VERSION = "1.15.2";
 const CHANGELOG = [
   { v: "1.15.2", date: "2026-11-24", notes: ["로그인하면 위쪽에 내 Google 계정(사진·이름) 표시, 누르면 내 계정 정보"] },
+  { v: "1.15.1", date: "2026-11-24", notes: ["오른쪽 위 \"사용법\" 버튼: 적는 법, 큰 화면·끌어 옮기기, 로그인, 홈 화면 설치, 음성 추가, 꿀팁을 한 화면에"] },
+  { v: "1.15.0", date: "2026-11-24", notes: ["완료 기록을 한 줄 글자 대신 항목별 카드로: 목록·구입처·수량·반복·마감·몇 번 했는지", "\"자주 한 것\" 보기: 같은 일을 묶어 횟수, 마지막 날짜, 보통 며칠마다 했는지", "기록에서 \"+ 다시 추가\"를 누르면 같은 구입처·수량으로 목록에 바로 다시 들어감 (이미 있으면 \"목록에 있음\")"] },
+  { v: "1.14.1", date: "2026-11-24", notes: ["구입처 인식 확대: 주유소·마트·철물점·문구점·정육점·빵집·세탁소·이케아·알리·테무 등 추가", "목록에 없어도 \"동네마트\", \"행복약국\", \"SK주유소\"처럼 가게 이름으로 끝나는 첫 단어는 구입처로 인식", "할일을 장바구니로 끌어 옮길 때도 같은 규칙 적용"] },
   { v: "1.14.0", date: "2026-11-24", notes: ["Google 로그인: 로그인하면 목록이 내 계정 전용 공간에 저장되고, 본인만 읽고 쓸 수 있음", "다른 기기도 같은 계정으로 로그인만 하면 같은 목록 (연결 링크 필요 없음)", "로그인할 때 이 기기의 예전 목록(연결 링크 열쇠)을 계정으로 자동으로 옮기고, 옮긴 뒤에는 열쇠로 읽을 수 없게 막음", "음성·단축어용 '추가 전용' 주소: 항목을 넣을 수만 있고 목록은 볼 수 없음, 새로 만들면 예전 주소는 못 씀", "로그아웃하면 이 기기의 목록 사본도 지움"] },
   { v: "1.13.0", date: "2026-11-24", notes: ["전체 탭에서 장바구니 ↔ 할일 사이로 끌어 옮기기 (보드·나란히 보기)", "할일 → 장바구니: \"다이소 우유 2개\"처럼 적힌 할일은 구입처·수량을 나눠 읽고, 보드에서는 놓은 구입처 칸으로", "장바구니 → 할일: 구입처·수량은 글자에 붙여 남기고, 보드에서는 놓은 마감 칸의 날짜로", "옮긴 뒤 되돌리기 가능"] },
   { v: "1.12.0", date: "2026-11-24", notes: ["보드 보기에서 항목을 마우스로 끌어 다른 칸으로 옮기기", "장바구니: 놓은 칸의 구입처로 바뀜 (구입처 미지정 칸 포함)", "할일: 오늘 칸은 오늘, 이번 주 칸은 내일, 나중 칸은 일주일 뒤, 마감없음 칸은 마감 지움 (이미 그 칸 범위면 날짜 유지)", "완료 칸에 놓으면 체크, 완료에서 끌어내면 다시 할 것으로. 옮긴 뒤 되돌리기 가능"] },
@@ -564,7 +665,11 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
    "서울우유 1"처럼 붙여 쓴 이름이나 "냉동 만두"는 구입처로 오인하지 않습니다.
    처음 쓰는 가게는 "@동네마트 두부" 또는 "동네마트: 두부"로 적으면 기억합니다. */
 const DEFAULT_STORES = ["다이소", "이마트", "홈플러스", "롯데마트", "코스트코", "트레이더스", "노브랜드", "쿠팡", "컬리", "마켓컬리",
-  "올리브영", "편의점", "GS25", "CU", "세븐일레븐", "이마트24", "시장", "약국", "하나로마트", "농협", "SSG", "네이버", "오아시스", "다이소몰"];
+  "올리브영", "편의점", "GS25", "CU", "세븐일레븐", "이마트24", "시장", "약국", "하나로마트", "농협", "SSG", "네이버", "오아시스", "다이소몰",
+  "주유소", "마트", "철물점", "문구점", "정육점", "빵집", "꽃집", "세탁소", "백화점", "아울렛", "이케아", "알리", "테무", "11번가", "G마켓", "옥션",
+  "동물병원", "병원", "우체국", "은행", "카센터", "정비소", "세차장", "미용실", "반찬가게", "과일가게", "생협", "한살림"];
+/* 목록에 없어도 첫 단어가 가게 이름처럼 끝나면 구입처로 봄: 동네마트, 행복약국, 망원시장, SK주유소, 우리철물점 … */
+const STORE_SUFFIX = /^\S{1,12}(?:마트|시장|약국|주유소|백화점|아울렛|철물점|문구점|정육점|빵집|꽃집|세탁소|편의점|상회|상점|스토어|몰|병원|정비소|카센터)$/i;
 function knownStores() {
   const seen = new Map();
   for (const x of [...(state.stores || []), ...DEFAULT_STORES]) if (!seen.has(x.toLowerCase())) seen.set(x.toLowerCase(), x);
@@ -661,7 +766,8 @@ function parseEntry(raw, type) {
     else {
       const sp = t.indexOf(" ");
       if (sp > 0) {
-        const hit = knownStores().get(t.slice(0, sp).toLowerCase());
+        const first = t.slice(0, sp);
+        const hit = knownStores().get(first.toLowerCase()) || (STORE_SUFFIX.test(first) ? first : "");
         if (hit) { store = hit; t = t.slice(sp + 1).trim(); }
       }
     }
@@ -1488,8 +1594,50 @@ function updateInfo() {
   $("connectBox").hidden = syncMode !== "netlify" || authOn; // 로그인 기능이 켜지면 열쇠 링크는 더 나눠 주지 않음
   if (syncMode === "netlify") $("connectLink").value = location.origin + location.pathname + "#k=" + listKey;
 }
-/* ===== 완료 기록 ===== */
-let histFilter = "";
+/* ===== 완료 기록 =====
+   끝낸 항목(기록으로 보낸 것 포함)을 날짜별 또는 "자주 한 것"(같은 목록·구입처·이름끼리 묶음)으로 보여 주고,
+   반복되는 일은 한 번에 다시 목록에 넣을 수 있게 함 */
+let histFilter = "", histView = "date";
+const histKey = (it, type) => type + "|" + (it.store || "").toLowerCase() + "|" + it.text.trim().toLowerCase();
+const shortDate = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
+const openTwin = (it, type) => state.lists[type].items.find(i => !i.done && i.text === it.text && (i.store || "") === (it.store || ""));
+/* 기록에 있는 항목을 같은 목록에 새로 넣음 (구입처·수량·반복은 그대로, 마감은 반복이면 다음 회차, 아니면 비움) */
+function readdItem(it, type) {
+  if (openTwin(it, type)) { notify(`'${it.text}'은(는) 이미 ${LIST_TYPES[type].label}에 있어요`); return; }
+  const repeat = LIST_TYPES[type].parseDue && it.repeat ? it.repeat : null;
+  const due = repeat ? ymd(nextOccurrence(repeat, todayStart(), true)) : "";
+  state.lists[type].items.unshift({ id: uid(), store: it.store || "", due, repeat, text: it.text, qty: it.qty || "", done: false, createdAt: Date.now(), mt: Date.now() });
+  commit(); renderHistory(); notify(`'${it.text}'을(를) ${LIST_TYPES[type].label}에 다시 넣었어요`);
+}
+function readdBtn(it, type) {
+  const b = document.createElement("button"); b.type = "button"; b.className = "readd";
+  const has = !!openTwin(it, type);
+  b.textContent = has ? "목록에 있음" : "+ 다시 추가"; b.disabled = has;
+  b.setAttribute("aria-label", has ? `${it.text}: 이미 ${LIST_TYPES[type].label}에 있음` : `${it.text}을(를) ${LIST_TYPES[type].label}에 다시 추가`);
+  b.onclick = () => readdItem(it, type);
+  return b;
+}
+function tag(cls, text) { const s = document.createElement("span"); s.className = cls; s.textContent = text; return s; }
+/* 한 줄: [목록] [구입처] 이름 수량 ↻반복 · 부가 정보 ... [다시 추가] */
+function histRow(it, type, metaBits) {
+  const li = document.createElement("li"); li.className = "hrow";
+  const main = document.createElement("div"); main.className = "hmain";
+  const top = document.createElement("div"); top.className = "htop";
+  if (!histFilter) top.appendChild(tag("store kind", LIST_TYPES[type].label));
+  if (it.store) top.appendChild(tag("store", it.store));
+  top.appendChild(tag("htext", it.text));
+  if (it.qty) top.appendChild(tag("qty", it.qty));
+  if (it.repeat) top.appendChild(tag("rep", "↻ " + repeatLabel(it.repeat)));
+  main.appendChild(top);
+  const bits = metaBits.filter(Boolean);
+  if (bits.length) {
+    const meta = document.createElement("div"); meta.className = "hmeta";
+    for (const b of bits) meta.appendChild(typeof b === "string" ? tag("", b) : b);
+    main.appendChild(meta);
+  }
+  li.append(main, readdBtn(it, type));
+  return li;
+}
 function renderHistory() {
   const kinds = enabledTypes().filter(k => LIST_TYPES[k].collapseDone);
   const fb = $("histFilter"); fb.innerHTML = "";
@@ -1499,9 +1647,19 @@ function renderHistory() {
     b.onclick = () => { histFilter = v; renderHistory(); };
     fb.appendChild(b);
   }
+  const vb = $("histView"); vb.innerHTML = "";
+  for (const [v, name] of [["date", "날짜별"], ["freq", "자주 한 것"]]) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "seg"; b.textContent = name;
+    b.setAttribute("aria-pressed", String(histView === v));
+    b.onclick = () => { histView = v; renderHistory(); };
+    vb.appendChild(b);
+  }
   const items = kinds.filter(k => !histFilter || k === histFilter)
     .flatMap(k => state.lists[k].items.filter(i => i.done && i.doneAt).map(i => ({ ...i, _type: k })));
   items.sort((a, b) => b.doneAt - a.doneAt);
+  // 같은 목록·구입처·이름끼리 묶기 (items 가 최신순이라 groups 의 첫 항목이 가장 최근)
+  const groups = new Map();
+  for (const it of items) { const k = histKey(it, it._type); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(it); }
   const today = todayStart();
   const weekStart = addDays(today, -((today.getDay() + 6) % 7)); // 월요일 시작
   const cnt = from => items.filter(i => i.doneAt >= from.getTime()).length;
@@ -1510,6 +1668,31 @@ function renderHistory() {
   for (const [l, n] of stats) { const d = document.createElement("div"); d.className = "stat"; d.innerHTML = "<b></b><span></span>"; d.children[0].textContent = n; d.children[1].textContent = l; box.appendChild(d); }
   const out = $("histList"); out.innerHTML = "";
   if (!items.length) { const p = document.createElement("p"); p.className = "hint"; p.textContent = "아직 끝낸 항목이 없어요."; out.appendChild(p); return; }
+
+  if (histView === "freq") {
+    const rows = [...groups.values()].sort((a, b) => b.length - a.length || b[0].doneAt - a[0].doneAt);
+    const multi = rows.filter(g => g.length > 1), once = rows.filter(g => g.length === 1);
+    const section = (title, list) => {
+      if (!list.length) return;
+      const sec = document.createElement("div"); sec.className = "hday";
+      const h = document.createElement("h3"); h.textContent = `${title} · ${list.length}`;
+      const ul = document.createElement("ul"); sec.append(h, ul); out.appendChild(sec);
+      for (const g of list) {
+        const last = g[0];
+        let every = "";
+        if (g.length > 1) {
+          const span = (g[0].doneAt - g[g.length - 1].doneAt) / 86400000 / (g.length - 1);
+          every = span >= 1 ? `보통 ${Math.round(span)}일마다` : "";
+        }
+        const n = g.length > 1 ? tag("hcount", `${g.length}번`) : null;
+        ul.appendChild(histRow(last, last._type, [n, `마지막 ${shortDate(last.doneAt)} ${LIST_TYPES[last._type].doneWord}`, every]));
+      }
+    };
+    section("여러 번 한 것", multi);
+    section("한 번 한 것", once);
+    return;
+  }
+
   let cur = null, ul = null;
   for (const it of items) {
     const d = new Date(it.doneAt); const key = ymd(d);
@@ -1518,12 +1701,12 @@ function renderHistory() {
       const h = document.createElement("h3"); h.textContent = `${d.getMonth() + 1}/${d.getDate()} (${WD[d.getDay()]})`;
       ul = document.createElement("ul"); sec.append(h, ul); out.appendChild(sec);
     }
-    const li = document.createElement("li");
-    if (!histFilter) { const k = document.createElement("span"); k.className = "store"; k.textContent = LIST_TYPES[it._type].label; li.appendChild(k); }
-    if (it.store) { const st = document.createElement("span"); st.className = "store"; st.textContent = it.store; li.appendChild(st); }
-    const t = document.createElement("span"); t.textContent = it.text + (it.qty ? " " + it.qty : ""); li.appendChild(t);
-    if (it.due && it.due < key) { const l = document.createElement("span"); l.className = "late"; l.textContent = "마감 지나서"; li.appendChild(l); }
-    ul.appendChild(li);
+    const n = groups.get(histKey(it, it._type)).length;
+    const bits = [];
+    if (n > 1) bits.push(tag("hcount", `${n}번`));
+    if (it.due) bits.push(it.due < key ? tag("late", `마감 ${shortDate(it.due + "T00:00")} 지나서`) : `마감 ${shortDate(it.due + "T00:00")}`);
+    bits.push(it.archived ? "기록으로 보냄" : "");
+    ul.appendChild(histRow(it, it._type, bits));
   }
 }
 function openHist() { renderHistory(); $("histModal").hidden = false; $("histClose").focus(); }
@@ -1533,6 +1716,12 @@ $("histClose").addEventListener("click", closeHist);
 $("histModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeHist(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("histModal").hidden) closeHist(); });
 
+function openHelp() { $("helpModal").hidden = false; $("helpClose").focus(); }
+function closeHelp() { $("helpModal").hidden = true; $("helpBtn").focus(); }
+$("helpBtn").addEventListener("click", openHelp);
+$("helpClose").addEventListener("click", closeHelp);
+$("helpModal").addEventListener("click", e => { if (e.target === e.currentTarget) closeHelp(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("helpModal").hidden) closeHelp(); });
 function openInfo() { updateInfo(); updateInstall(); renderAccount(); if (authUser && !$("addLink").value) loadAddKey(false); $("infoModal").hidden = false; $("infoClose").focus(); }
 function closeInfo() { $("infoModal").hidden = true; $("verBtn").focus(); }
 $("verBtn").addEventListener("click", openInfo);
