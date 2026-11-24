@@ -168,9 +168,21 @@ li.done .qty { color: var(--done); background: transparent; }
 .hday { margin-top: 14px; }
 .hday h3 { font-size: 13px; color: var(--muted); margin: 0 0 6px; font-variant-numeric: tabular-nums; }
 .hday ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.hday li { display: flex; gap: 8px; align-items: baseline; font-size: 14.5px; }
-.hday li::before { content: "✔"; color: var(--accent); font-size: 12px; }
-.hday .late { font-size: 12px; color: var(--danger); }
+.hday li.hrow { display: flex; gap: 10px; align-items: center; font-size: 14.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px 7px 12px; }
+.hmain { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.htop { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.htext { overflow-wrap: anywhere; }
+.store.kind { color: var(--accent); border-color: var(--accent-soft); background: var(--accent-soft); }
+.hmeta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hmeta .hcount { color: var(--accent); font-weight: 700; }
+.hmeta .late { color: var(--danger); }
+.readd { flex: none; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border: 0; border-radius: 999px; padding: 6px 11px; cursor: pointer; white-space: nowrap; }
+.readd:disabled { color: var(--muted); background: transparent; font-weight: 500; cursor: default; }
+.readd:focus-visible, .seg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.histbar { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.segs { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--surface); }
+.seg { font: inherit; font-size: 13px; border: 0; background: none; color: var(--muted); padding: 3px 11px; border-radius: 999px; cursor: pointer; }
+.seg[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .donehead { font: inherit; display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; cursor: pointer; color: var(--muted); }
 .donehead:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .donehead .chev { font-size: 13px; line-height: 1; transition: transform .15s; }
@@ -222,7 +234,7 @@ li.done .qty { color: var(--done); background: transparent; }
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   background: var(--fg); color: var(--bg); border-radius: 999px; padding: 8px 8px 8px 16px;
-  display: flex; align-items: center; gap: 10px; font-size: 14px; max-width: calc(100% - 32px); z-index: 20;
+  display: flex; align-items: center; gap: 10px; font-size: 14px; max-width: calc(100% - 32px); z-index: 40; /* 기록 팝업 위에도 보이게 */
 }
 .toast button { font: inherit; font-weight: 700; color: var(--accent); background: var(--bg); border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
 @media (prefers-reduced-motion: no-preference) { li.item { transition: background .15s; } }
@@ -301,7 +313,7 @@ body.dragging .lanes.board > section.droptarget { border-style: dashed; }
       <button class="icon" id="histClose" type="button" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="sheetbody">
-      <div class="filters" id="histFilter" role="group" aria-label="기록 종류"></div>
+      <div class="histbar"><div class="filters" id="histFilter" role="group" aria-label="기록 종류"></div><div class="segs" id="histView" role="group" aria-label="보는 방식"></div></div>
       <div class="stats" id="histStats"></div>
       <div id="histList"></div>
     </div>
@@ -408,8 +420,9 @@ const LIST_TYPES = {
 /* ===== 앱 버전 =====
    앱을 고칠 때마다 APP_VERSION 을 올리고 CHANGELOG 맨 위에 한 줄 추가합니다.
    앱 버전(화면/기능)과 SCHEMA_VERSION(데이터 형식)은 따로 관리합니다. */
-const APP_VERSION = "1.14.0";
+const APP_VERSION = "1.15.0";
 const CHANGELOG = [
+  { v: "1.15.0", date: "2026-11-24", notes: ["완료 기록을 한 줄 글자 대신 항목별 카드로: 목록·구입처·수량·반복·마감·몇 번 했는지", "\"자주 한 것\" 보기: 같은 일을 묶어 횟수, 마지막 날짜, 보통 며칠마다 했는지", "기록에서 \"+ 다시 추가\"를 누르면 같은 구입처·수량으로 목록에 바로 다시 들어감 (이미 있으면 \"목록에 있음\")"] },
   { v: "1.14.0", date: "2026-11-24", notes: ["Google 로그인: 로그인하면 목록이 내 계정 전용 공간에 저장되고, 본인만 읽고 쓸 수 있음", "다른 기기도 같은 계정으로 로그인만 하면 같은 목록 (연결 링크 필요 없음)", "로그인할 때 이 기기의 예전 목록(연결 링크 열쇠)을 계정으로 자동으로 옮기고, 옮긴 뒤에는 열쇠로 읽을 수 없게 막음", "음성·단축어용 '추가 전용' 주소: 항목을 넣을 수만 있고 목록은 볼 수 없음, 새로 만들면 예전 주소는 못 씀", "로그아웃하면 이 기기의 목록 사본도 지움"] },
   { v: "1.13.0", date: "2026-11-24", notes: ["전체 탭에서 장바구니 ↔ 할일 사이로 끌어 옮기기 (보드·나란히 보기)", "할일 → 장바구니: \"다이소 우유 2개\"처럼 적힌 할일은 구입처·수량을 나눠 읽고, 보드에서는 놓은 구입처 칸으로", "장바구니 → 할일: 구입처·수량은 글자에 붙여 남기고, 보드에서는 놓은 마감 칸의 날짜로", "옮긴 뒤 되돌리기 가능"] },
   { v: "1.12.0", date: "2026-11-24", notes: ["보드 보기에서 항목을 마우스로 끌어 다른 칸으로 옮기기", "장바구니: 놓은 칸의 구입처로 바뀜 (구입처 미지정 칸 포함)", "할일: 오늘 칸은 오늘, 이번 주 칸은 내일, 나중 칸은 일주일 뒤, 마감없음 칸은 마감 지움 (이미 그 칸 범위면 날짜 유지)", "완료 칸에 놓으면 체크, 완료에서 끌어내면 다시 할 것으로. 옮긴 뒤 되돌리기 가능"] },
@@ -1446,8 +1459,50 @@ function updateInfo() {
   $("connectBox").hidden = syncMode !== "netlify" || authOn; // 로그인 기능이 켜지면 열쇠 링크는 더 나눠 주지 않음
   if (syncMode === "netlify") $("connectLink").value = location.origin + location.pathname + "#k=" + listKey;
 }
-/* ===== 완료 기록 ===== */
-let histFilter = "";
+/* ===== 완료 기록 =====
+   끝낸 항목(기록으로 보낸 것 포함)을 날짜별 또는 "자주 한 것"(같은 목록·구입처·이름끼리 묶음)으로 보여 주고,
+   반복되는 일은 한 번에 다시 목록에 넣을 수 있게 함 */
+let histFilter = "", histView = "date";
+const histKey = (it, type) => type + "|" + (it.store || "").toLowerCase() + "|" + it.text.trim().toLowerCase();
+const shortDate = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()}`; };
+const openTwin = (it, type) => state.lists[type].items.find(i => !i.done && i.text === it.text && (i.store || "") === (it.store || ""));
+/* 기록에 있는 항목을 같은 목록에 새로 넣음 (구입처·수량·반복은 그대로, 마감은 반복이면 다음 회차, 아니면 비움) */
+function readdItem(it, type) {
+  if (openTwin(it, type)) { notify(`'${it.text}'은(는) 이미 ${LIST_TYPES[type].label}에 있어요`); return; }
+  const repeat = LIST_TYPES[type].parseDue && it.repeat ? it.repeat : null;
+  const due = repeat ? ymd(nextOccurrence(repeat, todayStart(), true)) : "";
+  state.lists[type].items.unshift({ id: uid(), store: it.store || "", due, repeat, text: it.text, qty: it.qty || "", done: false, createdAt: Date.now(), mt: Date.now() });
+  commit(); renderHistory(); notify(`'${it.text}'을(를) ${LIST_TYPES[type].label}에 다시 넣었어요`);
+}
+function readdBtn(it, type) {
+  const b = document.createElement("button"); b.type = "button"; b.className = "readd";
+  const has = !!openTwin(it, type);
+  b.textContent = has ? "목록에 있음" : "+ 다시 추가"; b.disabled = has;
+  b.setAttribute("aria-label", has ? `${it.text}: 이미 ${LIST_TYPES[type].label}에 있음` : `${it.text}을(를) ${LIST_TYPES[type].label}에 다시 추가`);
+  b.onclick = () => readdItem(it, type);
+  return b;
+}
+function tag(cls, text) { const s = document.createElement("span"); s.className = cls; s.textContent = text; return s; }
+/* 한 줄: [목록] [구입처] 이름 수량 ↻반복 · 부가 정보 ... [다시 추가] */
+function histRow(it, type, metaBits) {
+  const li = document.createElement("li"); li.className = "hrow";
+  const main = document.createElement("div"); main.className = "hmain";
+  const top = document.createElement("div"); top.className = "htop";
+  if (!histFilter) top.appendChild(tag("store kind", LIST_TYPES[type].label));
+  if (it.store) top.appendChild(tag("store", it.store));
+  top.appendChild(tag("htext", it.text));
+  if (it.qty) top.appendChild(tag("qty", it.qty));
+  if (it.repeat) top.appendChild(tag("rep", "↻ " + repeatLabel(it.repeat)));
+  main.appendChild(top);
+  const bits = metaBits.filter(Boolean);
+  if (bits.length) {
+    const meta = document.createElement("div"); meta.className = "hmeta";
+    for (const b of bits) meta.appendChild(typeof b === "string" ? tag("", b) : b);
+    main.appendChild(meta);
+  }
+  li.append(main, readdBtn(it, type));
+  return li;
+}
 function renderHistory() {
   const kinds = enabledTypes().filter(k => LIST_TYPES[k].collapseDone);
   const fb = $("histFilter"); fb.innerHTML = "";
@@ -1457,9 +1512,19 @@ function renderHistory() {
     b.onclick = () => { histFilter = v; renderHistory(); };
     fb.appendChild(b);
   }
+  const vb = $("histView"); vb.innerHTML = "";
+  for (const [v, name] of [["date", "날짜별"], ["freq", "자주 한 것"]]) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "seg"; b.textContent = name;
+    b.setAttribute("aria-pressed", String(histView === v));
+    b.onclick = () => { histView = v; renderHistory(); };
+    vb.appendChild(b);
+  }
   const items = kinds.filter(k => !histFilter || k === histFilter)
     .flatMap(k => state.lists[k].items.filter(i => i.done && i.doneAt).map(i => ({ ...i, _type: k })));
   items.sort((a, b) => b.doneAt - a.doneAt);
+  // 같은 목록·구입처·이름끼리 묶기 (items 가 최신순이라 groups 의 첫 항목이 가장 최근)
+  const groups = new Map();
+  for (const it of items) { const k = histKey(it, it._type); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(it); }
   const today = todayStart();
   const weekStart = addDays(today, -((today.getDay() + 6) % 7)); // 월요일 시작
   const cnt = from => items.filter(i => i.doneAt >= from.getTime()).length;
@@ -1468,6 +1533,31 @@ function renderHistory() {
   for (const [l, n] of stats) { const d = document.createElement("div"); d.className = "stat"; d.innerHTML = "<b></b><span></span>"; d.children[0].textContent = n; d.children[1].textContent = l; box.appendChild(d); }
   const out = $("histList"); out.innerHTML = "";
   if (!items.length) { const p = document.createElement("p"); p.className = "hint"; p.textContent = "아직 끝낸 항목이 없어요."; out.appendChild(p); return; }
+
+  if (histView === "freq") {
+    const rows = [...groups.values()].sort((a, b) => b.length - a.length || b[0].doneAt - a[0].doneAt);
+    const multi = rows.filter(g => g.length > 1), once = rows.filter(g => g.length === 1);
+    const section = (title, list) => {
+      if (!list.length) return;
+      const sec = document.createElement("div"); sec.className = "hday";
+      const h = document.createElement("h3"); h.textContent = `${title} · ${list.length}`;
+      const ul = document.createElement("ul"); sec.append(h, ul); out.appendChild(sec);
+      for (const g of list) {
+        const last = g[0];
+        let every = "";
+        if (g.length > 1) {
+          const span = (g[0].doneAt - g[g.length - 1].doneAt) / 86400000 / (g.length - 1);
+          every = span >= 1 ? `보통 ${Math.round(span)}일마다` : "";
+        }
+        const n = g.length > 1 ? tag("hcount", `${g.length}번`) : null;
+        ul.appendChild(histRow(last, last._type, [n, `마지막 ${shortDate(last.doneAt)} ${LIST_TYPES[last._type].doneWord}`, every]));
+      }
+    };
+    section("여러 번 한 것", multi);
+    section("한 번 한 것", once);
+    return;
+  }
+
   let cur = null, ul = null;
   for (const it of items) {
     const d = new Date(it.doneAt); const key = ymd(d);
@@ -1476,12 +1566,12 @@ function renderHistory() {
       const h = document.createElement("h3"); h.textContent = `${d.getMonth() + 1}/${d.getDate()} (${WD[d.getDay()]})`;
       ul = document.createElement("ul"); sec.append(h, ul); out.appendChild(sec);
     }
-    const li = document.createElement("li");
-    if (!histFilter) { const k = document.createElement("span"); k.className = "store"; k.textContent = LIST_TYPES[it._type].label; li.appendChild(k); }
-    if (it.store) { const st = document.createElement("span"); st.className = "store"; st.textContent = it.store; li.appendChild(st); }
-    const t = document.createElement("span"); t.textContent = it.text + (it.qty ? " " + it.qty : ""); li.appendChild(t);
-    if (it.due && it.due < key) { const l = document.createElement("span"); l.className = "late"; l.textContent = "마감 지나서"; li.appendChild(l); }
-    ul.appendChild(li);
+    const n = groups.get(histKey(it, it._type)).length;
+    const bits = [];
+    if (n > 1) bits.push(tag("hcount", `${n}번`));
+    if (it.due) bits.push(it.due < key ? tag("late", `마감 ${shortDate(it.due + "T00:00")} 지나서`) : `마감 ${shortDate(it.due + "T00:00")}`);
+    bits.push(it.archived ? "기록으로 보냄" : "");
+    ul.appendChild(histRow(it, it._type, bits));
   }
 }
 function openHist() { renderHistory(); $("histModal").hidden = false; $("histClose").focus(); }
